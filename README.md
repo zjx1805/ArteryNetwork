@@ -3,3 +3,72 @@
 This repository contains the code for our [paper](link):
 
 > Paper info
+
+If you find the code useful for your research, please cite our paper:
+
+> Paper reference
+
+The entire processing pipeline described in our paper is implemented here and is divided into modules. This document will demonstrate, step by step, how to use the pipeline. Note that out of the 4 datasets used (ADAN/BraVa/GBM/Speck), two of them are publicly available (ADAN from [here](http://hemolab.lncc.br/adan-web/) and BraVa from [here](http://cng.gmu.edu/brava/home.php)), the Speck dataset can be obtained by contacting the [author](https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.27033), the GBM dataset is for private use only and thus cannot be shared (because it contains sensitive patient data).
+
+# Prerequisites
+* [3D Slicer](https://download.slicer.org/) (tested with version 4.10.0)
+* Python (tested with Python 3.6.5)
+* Numpy(tested with v1.14.3)
+* Scipy(tested with v1.1.0)
+* FSL (tested with v5.0.11): image registration
+* Nibabel(tested with v2.3.0): reading and writing nifti files
+* Skimage(tested with v0.13.1): image processing
+* Pyqtgraph(tested with v0.10.0): displaying volume and GUI related
+* Matplotlib(tested with v2.2.2): plotting
+* NetworkX(tested with v2.1): graph-related
+* Skeletonization ([Amy Tabb](https://data.nal.usda.gov/dataset/code-fast-and-robust-curve-skeletonization-real-world-elongated-objects)): skeletonization of vessel volume
+
+
+# Pipeline
+
+## MR images
+
+In general, you should be able to see arteries clearly from MRA (Magnetic Resonance Angiography) images with high resolution (<= 600 um). In some cases, 3D T1 images would also do the job (like the Speck data).
+
+## Pre-processing
+
+We use [3D Slicer](https://download.slicer.org/) for displaying the MR image volumes and performing several pre-processing tasks. The following plugins are needed: `SwissSkullStripper`, `SlicerVMTK`, `SegmentEditorExtraEffects` (optional). They can be downloaded from the plugin store within 3D Slicer.
+
+### MR image bias field correction (optional)
+
+Depending on the quality of the MR images, a bias field correction might be necessary. This can be done using the built-in module `N4ITK MRI Bias correction` in 3D Slicer. Adjust the parameters as needed.
+
+### MR image denoising (optional)
+
+Depending on the quality of the MR images, basic image denoising operations might be necessary, e.g., thresholding, filtering. Some of them can be achieved by using the buili-in module `Simple Filters` in 3D Slicer.
+
+### Multiple image registration (optional)
+
+In case you have multiple sets of MR images of a same subject depicting different locations, you may use the `FSL` package to register them into the same space. See the help of `flirt` (linear registration) or `fnirt` (nonlinear registration) if necessary.
+
+### Skull stripping
+
+We use the `Swiss Skull Stripper` module with default parameters to extract the brain volume from the MR images. Note that although the default atlas should give you a nice brain volume, most of the CoW (Circle of Wills) region is not included. Besides, it might miss small areas at the surface of the brain. You can manually add these regions by loading the resulting volume into the `Segment Editor` module and use the `brush` tool to paint the regions you want to add.
+
+## Vessel segmentation
+
+In this step, we segment the brain volume and extract the vessels. If you already have a segmented vessel volume, you may skip this and proceed to the next step.
+
+### Vesselness filtering
+
+We use the `SlicerVMTK` module to perform vesselness filtering on the skull-stripped brain volume obtained from the previous step. Note that the quality of the output of this step is crucial to the steps afterwards, and thus please try your best to obtain a good filtered volume.
+
+We recommend adjusting the parameters `Minimum vessel diameter`, `Maximum vessel diameter`, `Vessel contrast`, `Suppress plates` and `Suppress blobs` manually and for multiple times to see the effect. The filtering process would take a huge amount of memory and time. Based on our experience, a volume of 512\*512\*170 voxels in size would require about 10 GB of RAM and take about 3-5 minutes to run on a i7-6700K CPU. For a even larger volume (e.g., 880\*880\*640 voxels in size as of the Speck dataset), we recommend splitting the whole volume into smaller pieces, perform the veselness filtering on each of them, and then merge them together.
+
+The vesselness filtering algorithm essentially assigns a value to each voxel, representing the probability of it being a part of the vessel. It makes use of the Hessian matrix as well as the corresponding eigenvalues to detect the vessels, which are enlongated objects with roughly circular shapes. Thus it works well if the vessels are of regular shapes and can be seen quite clearly and produces poor result if the vessels are fuzzy, irregular in shape, or at the junctions (bifurcations). In general, if you can see the vessels quite clearly from the filtered volume (probably with simple thresholding), then you are fine and may proceed to the next step.
+
+### Vessel smoothing
+
+The filtered vessel volume obtained from the previous step might still have some rough boundaries or small gaps, and thus we try to fix them in this step. Specifically, we implement the variational region growing algorithm described in this [paper](https://ieeexplore.ieee.org/document/7096420) and apply it on the filterd vessel volume. It should be able to smoothen the surface of the vessels and bridge small gaps (several voxels wide depending on the parameters used) within the volume. The algorithm is implemented in `./code/VariationalRegionGrow.py`.
+
+### Skeletonization
+
+Since the vessels are usually enlongated objects with circular shape, we can simplify the vessel volume by reducing it into a 1D representation: centerlines with corresponding radius information. To do this, we make use of the skeletonziation algorithm described in this [paper](https://data.nal.usda.gov/dataset/code-fast-and-robust-curve-skeletonization-real-world-elongated-objects). In order to suppress the spurious vessel segments in noisy regions, the user-defined acceptance probability *t* was set to `1e^(-12)`. 
+
+### Manual correction
+
