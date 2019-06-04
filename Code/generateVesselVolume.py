@@ -74,6 +74,8 @@ def saveVolume(volume, affine, path, astype=None):
         The affine transformation matrix associated with the volume.
     path : str
         The absolute path where the volume is going to be saved.
+    astype : numpy dtype, optional
+        The desired data type of the volume data.
     """
     if astype is None:
         astype = np.uint8

@@ -103,3 +103,37 @@ We calculate the various morphological properties listed in this [paper](https:/
 ## Blood flow simulation
 
 We perform simplified blood flow simulation using the [Hazen–Williams equation](https://en.wikipedia.org/wiki/Hazen%E2%80%93Williams_equation) (H-W equation) on each of the compartments separately, or on the complete artery network with [Circle of Willis](https://en.wikipedia.org/wiki/Circle_of_Willis) (CoW) included. For the CoW, we create a simplified CoW structure from this [paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4420884/) and take their blood distribution numbers as a reference. The terminating pressure vs path length relationship used in our paper comes from the [ADAN](http://hemolab.lncc.br/adan-web/doc/index.html) dataset.
+
+## File dependencies
+
+Most of the functionalities in the pipeline are modularized and separated into different `.py` files, and each `.py` file requires different input files and produces different output files. Thus, we show these dependencies in this section.
+
+**Filename:** `generateVesselVolume.py`  
+**Description:** Create a vessel volume mask using the vesselness-filtered brain volume.  
+**Requires:**  
+* brainVolume.nii.gz: The extracted brain volume.  
+* brainVolumeMask.nii.gz: The data mask of the extracted brain volume.  
+* vesselnessFiltered.nii.gz: The vesselness-filtered brain volume.  
+
+**Produces:**  
+* vesselVolumeMask.nii.gz: The data mask of the resulting vessel volume.
+
+**Filename:** `skeletonization.py`  
+**Description:** Skeletonize the extracted vessel volume.  
+**Requires:**  
+* Result from the skeletonization (`result_segments_xyz*.txt`)
+
+**Produces:**  
+* graphRepresentation.graphml: The graph containing all the segments (vessel branches) and connections.
+* segmentListRough.npz: A list containing all the segments (vessel branches) from the skeletonization.  
+* skeleton.nii.gz: A Nifti file showing the skeletons (centerpoints).
+
+**Filename:** `xx.py`  
+**Description:** aa  
+**Requires:**  
+* a
+* b
+
+**Produces:**  
+* a
+* b
