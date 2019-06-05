@@ -729,7 +729,6 @@ def main():
     elapsed = timeit.default_timer() - start_time
     print('Elapsed: {} sec'.format(elapsed))
 
-
 if __name__ == "__main__":
     main()
 
