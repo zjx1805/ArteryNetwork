@@ -711,7 +711,7 @@ def main():
     print('{} saved to {}.'.format(graphFileName, graphFilePath))
 
     ## Save segmentList ##
-    segmentListFileName = 'segmentListRough.npz'
+    segmentListFileName = 'segmentList.npz'
     segmentListFilePath = os.path.join(baseFolder, segmentListFileName)
     np.savez_compressed(segmentListFilePath, segmentList=segmentList)
     print('{} saved to {}.'.format(segmentListFileName, segmentListFilePath))
