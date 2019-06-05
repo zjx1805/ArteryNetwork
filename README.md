@@ -75,7 +75,7 @@ The code outputs the centerline information in different formats, and we use the
 1. The first line of the file refers to the number of segments contained in this file.
 2. Separate the remaining lines into N parts, where N is the number of segments. The first line of each part is an integer represeting the number of consecutive centerpoint coordinates in this segment. The coordinates are represented in the voxel space.
 
-Ideally, each segment should be a simple branch, i.e., it does not contain bifurcation points unless at the two ends. However, due to some unknown reasons, some of the output segments are not simple branches. This is fixed using the function `functionName` in the `pythonFileName.py`. For each centerpoint, we assign a corresponding radius to it and the radius is obtained by performing distance transform to the segmented vessel volume. After that, we convert the entire network in the form of centerline/radius representation into a graph using the `NetworkX` package to faciliate further analysis.
+Ideally, each segment should be a simple branch, i.e., it does not contain bifurcation points unless at the two ends. However, due to some unknown reasons, some of the output segments are not simple branches. This is fixed using the function `processSegments` in the `skeletonization.py`. For each centerpoint, we assign a corresponding radius to it and the radius is obtained by performing distance transform to the segmented vessel volume. After that, we convert the entire network in the form of centerline/radius representation into a graph using the `NetworkX` package to faciliate further analysis.
 
 ### Manual correction
 
