@@ -88,7 +88,7 @@ Currently, the GUI supports the following operations:
 * Grow: extend the selected simple branch
 * Cut: unfinished
 
-The GUI can be found in `pythonFileName.py`.
+The GUI can be found in `manualCorrectionGUI.py`.
 
 ## Graph analysis
 
