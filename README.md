@@ -125,8 +125,21 @@ Most of the functionalities in the pipeline are modularized and separated into d
 
 **Produces:**  
 * graphRepresentation.graphml: The graph containing all the segments (vessel branches) and connections.
-* segmentListRough.npz: A list containing all the segments (vessel branches) from the skeletonization.  
+* segmentList.npz: A list containing all the segments (vessel branches) from the skeletonization.  
 * skeleton.nii.gz: A Nifti file showing the skeletons (centerpoints).
+
+**Filename:** `manualCorrectionGUI.py`  
+**Description:** Manually correct the wrong connections.  
+**Requires:**  
+* graphRepresentation.graphml: The graph containing all the segments (vessel branches) and connections.
+* segmentList.npz: A list containing all the segments (vessel branches) from the skeletonization.  
+* skeleton.nii.gz: A Nifti file showing the skeletons (centerpoints).
+
+**Produces:**  
+* removeList.npy: A list containing the segment indices that have been removed.
+* eventList.pkl: A pickled data file that contains the information of every step performed within the GUI and can be used to restore previous progress by loading it into the GUI.  
+* segmentListCleaned.npz: A list containing all the segments (vessel branches) after manual correction.  
+* graphRepresentationCleaned.graphml: The graph containing all the segments (vessel branches) and connections corresponding to `segmentListCleaned.npz`.
 
 **Filename:** `xx.py`  
 **Description:** aa  
