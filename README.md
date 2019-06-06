@@ -64,7 +64,7 @@ The vesselness filtering algorithm essentially assigns a value to each voxel, re
 
 ### Vessel smoothing
 
-The filtered vessel volume obtained from the previous step might still have some rough boundaries or small gaps, and thus we try to fix them in this step. Specifically, we implement the variational region growing algorithm described in this [paper](https://ieeexplore.ieee.org/document/7096420) and apply it on the filterd vessel volume. It should be able to smoothen the surface of the vessels and bridge small gaps (several voxels wide depending on the parameters used) within the volume. The algorithm is implemented in `./code/VariationalRegionGrow.py`.
+The filtered vessel volume obtained from the previous step might still have some rough boundaries or small gaps, and thus we try to fix them in this step. Specifically, we implement the variational region growing algorithm described in this [paper](https://ieeexplore.ieee.org/document/7096420) and apply it on the filterd vessel volume. It should be able to smoothen the surface of the vessels and bridge small gaps (several voxels wide depending on the parameters used) within the volume. The algorithm is implemented in `./code/variationalRegionGrowing.py`.
 
 ### Skeletonization
 
@@ -108,16 +108,18 @@ We perform simplified blood flow simulation using the [Hazen–Williams equation
 
 Most of the functionalities in the pipeline are modularized and separated into different `.py` files, and each `.py` file requires different input files and produces different output files. Thus, we show these dependencies in this section.
 
+----
 **Filename:** `generateVesselVolume.py`  
 **Description:** Create a vessel volume mask using the vesselness-filtered brain volume.  
-**Requires:**  
+**Requires:** 
 * brainVolume.nii.gz: The extracted brain volume.  
 * brainVolumeMask.nii.gz: The data mask of the extracted brain volume.  
-* vesselnessFiltered.nii.gz: The vesselness-filtered brain volume.  
+* vesselnessFiltered.nii.gz: The vesselness-filtered brain volume.      
 
 **Produces:**  
 * vesselVolumeMask.nii.gz: The data mask of the resulting vessel volume.
 
+----
 **Filename:** `skeletonization.py`  
 **Description:** Skeletonize the extracted vessel volume.  
 **Requires:**  
@@ -128,18 +130,22 @@ Most of the functionalities in the pipeline are modularized and separated into d
 * segmentList.npz: A list containing all the segments (vessel branches) from the skeletonization.  
 * skeleton.nii.gz: A Nifti file showing the skeletons (centerpoints).
 
+----
 **Filename:** `manualCorrectionGUI.py`  
 **Description:** Manually correct the wrong connections.  
 **Requires:**  
 * graphRepresentation.graphml: The graph containing all the segments (vessel branches) and connections.
 * segmentList.npz: A list containing all the segments (vessel branches) from the skeletonization.  
 * skeleton.nii.gz: A Nifti file showing the skeletons (centerpoints).
+* vesselVolumeMask.nii.gz: The data mask of the segmented vessel volume.
 
 **Produces:**  
 * removeList.npy: A list containing the segment indices that have been removed.
 * eventList.pkl: A pickled data file that contains the information of every step performed within the GUI and can be used to restore previous progress by loading it into the GUI.  
 * segmentListCleaned.npz: A list containing all the segments (vessel branches) after manual correction.  
 * graphRepresentationCleaned.graphml: The graph containing all the segments (vessel branches) and connections corresponding to `segmentListCleaned.npz`.
+* graphRepresentationCleanedWithEdgeInfo.graphml: The graph containing all the segments (vessel branches) and connections corresponding to `segmentListCleaned.npz` with basic branch properties (length, radius, etc.,) attached.
+----
 
 **Filename:** `xx.py`  
 **Description:** aa  

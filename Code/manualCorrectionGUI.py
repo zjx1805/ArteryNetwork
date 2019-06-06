@@ -23,6 +23,7 @@ import subprocess
 import platform
 import glob
 import pickle
+import inspect
 from manualCorrectionGUIDetail import Vessel
 
 
@@ -64,7 +65,7 @@ def mergeVolume(vessel150, vessel250, lowerBound, upperBound, axis):
 
     return indexVolume
     
-def main():
+def manualCorrectionGUI():
     """
     Main function to manually correct the connections. The actual implementation of the GUI is defined in
     `manualCorrectionGUIDetail.py`
@@ -217,7 +218,204 @@ def main():
     elapsed = timeit.default_timer() - start_time
     print('Elapsed: {} sec'.format(elapsed))
 
+def calculateBranchInfo(segmentList1, segmentList2, vesselVolume, directory):
+    '''
+    This function tries to
+    -- recover radius information for segments in segmentList2 based on segmentList1.
+    -- calculate basic attribute (tuotorsity, length, meanRadius) of each branch.
+
+    Note that since it is possible that some segments in segmentList2 are completely new and does not exist 
+    in segmentList1, and thus the radius estimation may not be accurate. *Needs to find a better way in the 
+    future.*
+    
+    Parameters
+    ----------
+    segmentList1 : list
+        Comes directly from skeletonization.
+    segmentList2 : list
+        Cleaned version of segmentList1 (i.e., with loops removed by `manualCorrectionGUI`)
+    vesselVolume : ndarray
+        Segmented vessel volume array.
+    directory : str
+        The folder path where the distance transform array (associated with `vesselVolume`) is located at.
+    
+    Returns
+    -------
+    G : NetworkX graph
+        A graph corresponding to the segments in segmentList2 and corresponding branch properties.
+    
+    '''
+    
+    vesselVolumeDistanceTransformFilePath = os.path.join(directory, 'vesselVolumeDistanceTransform.npz')
+    if os.path.exists(vesselVolumeDistanceTransformFilePath):
+        distanceTransform = np.load(vesselVolumeDistanceTransformFilePath)
+        distanceTransform = distanceTransform['distanceTransform']
+    else:
+        distanceTransform = ndi.morphology.distance_transform_edt(vesselVolume)
+        np.savez_compressed(vesselVolumeDistanceTransformFilePath, distanceTransform=distanceTransform) 
+    
+    shape = vesselVolume.shape
+    # creat index volume based on segmentList1
+    indexVolume = np.full(shape, 0, dtype=np.int16)
+    for segment1Index, segment1 in enumerate(segmentList1):
+        segment1Coords = np.array(segment1, dtype=np.int16)
+        indexVolume[tuple(segment1Coords.T)] = segment1Index + 1 # first segment start with 1
+    
+    # create graph based on segmentList2
+    G = nx.Graph()
+    for segment2 in segmentList2:
+        G.add_path(segment2)
+    
+    shortSegments2 = [] # segments of length 2 are processed later
+    newSegments2 = [] # completely new segments from segmentList2 (not present in segmentList1) are processed later
+    numOfSegments2 = len(segmentList2)
+    normalSegments2Counter = 0 # segment2 that is exactly the same as in segmentList1 are put here
+    segmentInfoDict = {} # stores the same info as the attributes in graph edges
+    for segment2Index, segment2 in enumerate(segmentList2):
+        if len(segment2) == 2:
+            shortSegments2.append([segment2Index, segment2])
+        else:
+            linkVoxels = [voxel for voxel in segment2 if G.degree(voxel) == 2 and indexVolume[voxel] != 0]
+            if len(linkVoxels) != 0:
+                linkVoxelsCoords = np.array(linkVoxels, dtype=np.int16)
+                linkVoxelsIndices = indexVolume[tuple(linkVoxelsCoords.T)]
+                uniqueIndices = np.unique(linkVoxelsIndices).tolist()
+                radiusList = distanceTransform[tuple(linkVoxelsCoords.T)]
+                if len(uniqueIndices) == 1:
+                    meanRadius = np.mean(radiusList)
+                    sigma = np.std(radiusList)
+                    normalSegments2Counter += 1
+                else:
+                    meanRadius = np.mean(radiusList)
+                    sigma = np.std(radiusList)
+                
+                if meanRadius == 0:
+                    temp = distanceTransform[tuple(np.array(segment2, dtype=np.int16).T)]
+                    nonZeroRadiusList = temp[temp != 0]
+                    if len(nonZeroRadiusList) != 0:
+                        meanRadius = np.mean(nonZeroRadiusList)
+                        sigma = np.std(nonZeroRadiusList)
+                    else:
+                        print('temp={}'.format(temp))
+                        print('Error! Mean radius = 0, radiusList={}'.format(radiusList))
+                
+                lengthList = [norm(np.array(segment2[ii + 1]) - np.array(segment2[ii])) for ii in range(len(segment2) - 1)]
+                pathLength = np.sum(lengthList)
+                eculideanLength = norm(np.array(segment2[0]) - np.array(segment2[-1]))
+                tortuosity = pathLength / eculideanLength
+                voxelLength = len(segment2)
+                # nx.write_graphml only accepts native python types as edge attributes
+                pathLength = float(pathLength)
+                eculideanLength = float(eculideanLength)
+                tortuosity = float(tortuosity)
+                meanRadius = float(meanRadius)
+                sigma = float(sigma)
+                segment2Index = int(segment2Index)
+                G.add_path(segment2, pathLength=pathLength, eculideanLength=eculideanLength, tortuosity=tortuosity, voxelLength=voxelLength, 
+                    meanRadius=meanRadius, sigma=sigma, segmentIndex=segment2Index)
+                segmentInfoDict[tuple(segment2)] = {'pathLength': pathLength, 'eculideanLength': eculideanLength, 'tortuosity': tortuosity, 'voxelLength': voxelLength, 
+                    'meanRadius': meanRadius, 'sigma': sigma, 'segmentIndex': segment2Index}
+            else:
+                newSegments2.append([segment2Index, segment2])
+    
+    for segment2Index, segment2 in shortSegments2:
+        segment2Head, segment2Tail = segment2
+        segment2HeadRadiusList = [G[segment2Head][voxel]['meanRadius'] for voxel in G.neighbors(segment2Head) if voxel != segment2Tail and 'meanRadius' in G[segment2Head][voxel]]
+        segment2HeadMeanRadius = np.mean(segment2HeadRadiusList) if len(segment2HeadRadiusList) != 0 else 0
+        segment2TailRadiusList = [G[segment2Tail][voxel]['meanRadius'] for voxel in G.neighbors(segment2Tail) if voxel != segment2Head and 'meanRadius' in G[segment2Tail][voxel]]
+        segment2TailMeanRadius = np.mean(segment2TailRadiusList) if len(segment2TailRadiusList) != 0 else 0
+        if segment2HeadMeanRadius != 0 and segment2TailMeanRadius != 0:
+            meanRadius = (segment2HeadMeanRadius + segment2TailMeanRadius) / 2
+        elif segment2HeadMeanRadius != 0 and segment2TailMeanRadius == 0:
+            meanRadius = segment2HeadMeanRadius
+        elif segment2HeadMeanRadius == 0 and segment2TailMeanRadius != 0:
+            meanRadius = segment2TailMeanRadius
+        else:
+            meanRadius = 0
+            print('Degree of head = {}, degree of tail = {}'.format(G.degree(segment2Head), G.degree(segment2Tail)))
+            print('mean radius at both head and tail are zero')
+        pathLength = norm(np.array(segment2Head) - np.array(segment2Tail))
+        eculideanLength = pathLength
+        tortuosity = pathLength / eculideanLength
+        voxelLength = len(segment2)
+        # nx.write_graphml only accepts native python types as edge attributes
+        pathLength = float(pathLength)
+        eculideanLength = float(eculideanLength)
+        tortuosity = float(tortuosity)
+        meanRadius = float(meanRadius)
+        segment2Index = int(segment2Index)
+        G.add_path(segment2, pathLength=pathLength, eculideanLength=eculideanLength, tortuosity=tortuosity, voxelLength=voxelLength, 
+            meanRadius=meanRadius, segmentIndex=segment2Index) # short segments do not have sigma
+        segmentInfoDict[tuple(segment2)] = {'pathLength': pathLength, 'eculideanLength': eculideanLength, 'tortuosity': tortuosity, 'voxelLength': voxelLength, 
+            'meanRadius': meanRadius, 'segmentIndex': segment2Index}
+    
+    for segment2Index, segment2 in newSegments2:
+        segment2Head, segment2Tail = segment2[0], segment2[-1]
+        segment2HeadRadiusList = [G[segment2Head][voxel]['meanRadius'] for voxel in G.neighbors(segment2Head) if voxel != segment2Tail and 'meanRadius' in G[segment2Head][voxel]]
+        segment2HeadMeanRadius = np.mean(segment2HeadRadiusList) if len(segment2HeadRadiusList) != 0 else 0
+        segment2TailRadiusList = [G[segment2Tail][voxel]['meanRadius'] for voxel in G.neighbors(segment2Tail) if voxel != segment2Head and 'meanRadius' in G[segment2Tail][voxel]]
+        segment2TailMeanRadius = np.mean(segment2TailRadiusList) if len(segment2TailRadiusList) != 0 else 0
+        if segment2HeadMeanRadius != 0 and segment2TailMeanRadius != 0:
+            meanRadius = (segment2HeadMeanRadius + segment2TailMeanRadius) / 2
+        elif segment2HeadMeanRadius != 0 and segment2TailMeanRadius == 0:
+            meanRadius = segment2HeadMeanRadius
+        elif segment2HeadMeanRadius == 0 and segment2TailMeanRadius != 0:
+            meanRadius = segment2TailMeanRadius
+        else:
+            meanRadius = 0
+            print('mean radius at both head and tail are zero')
+        pathLength = norm(np.array(segment2Head) - np.array(segment2Tail))
+        eculideanLength = pathLength
+        tortuosity = pathLength / eculideanLength
+        voxelLength = len(segment2)
+        # nx.write_graphml only accepts native python types as edge attributes
+        pathLength = float(pathLength)
+        eculideanLength = float(eculideanLength)
+        tortuosity = float(tortuosity)
+        meanRadius = float(meanRadius)
+        segment2Index = int(segment2Index)
+        G.add_path(segment2, pathLength=pathLength, eculideanLength=eculideanLength, tortuosity=tortuosity, voxelLength=voxelLength, 
+            meanRadius=meanRadius, segmentIndex=segment2Index) # new segments do not have sigma
+        segmentInfoDict[tuple(segment2)] = {'pathLength': pathLength, 'eculideanLength': eculideanLength, 'tortuosity': tortuosity, 'voxelLength': voxelLength, 
+            'meanRadius': meanRadius, 'segmentIndex': segment2Index}
+    
+    for node in G.nodes():
+        G.node[node]['radius'] = float(distanceTransform[node])
+    
+    print('normal segments: {}, shortSegments: {}, newSegments: {}'.format(normalSegments2Counter, len(shortSegments2), len(newSegments2)))
+    # nx.write_graphml(G, os.path.join(directory, 'graphRepresentationCleanedWithEdgeInfo.graphml'))
+    # print('graphRepresentationCleanedWithEdgeInfo.graphml saved')
+    # with open(os.path.join(directory, 'segmentInfoDictBasic.pkl'), 'wb') as f:
+    #     pickle.dump(segmentInfoDict, f, 2)
+    #     print('segmentInfoDictBasic.pkl saved')
+    return G
+
+def updateGraph():
+    """
+    Update the graph corresponding to `segmentList2`.
+    """
+    start_time = timeit.default_timer()
+    functionName = os.path.abspath(os.path.dirname(__file__))
+    directory = os.path.abspath(dirname)
+    
+    segmentList1 = np.load(os.path.join(directory, 'segmentList.npz'))
+    segmentList1 = segmentList1['segmentList']
+    segmentList1 = list(map(tuple, segmentList1))
+    segmentList2 = np.load(os.path.join(directory, 'segmentListCleaned.npz'))
+    segmentList2 = segmentList2['segmentList']
+    segmentList2 = list(map(tuple, segmentList2))
+    
+    vesselVolumeImg = nib.load(os.path.join(directory, 'vesselVolumeMask.nii.gz'))
+    vesselVolume = vesselVolumeImg.get_data()
+    shape = vesselVolume.shape
+    G = calculateBranchInfo(segmentList1, segmentList2, vesselVolume, directory)
+    nx.write_graphml(G, os.path.join(directory, 'graphRepresentationCleanedWithEdgeInfo.graphml'))
+    print('graphRepresentationCleanedWithEdgeInfo.graphml saved to {}.'.format(directory))
+    
+    elapsed = timeit.default_timer() - start_time
+    print('Elapsed time for function {}: {} sec'.format(functionName, elapsed))
 
 if __name__ == "__main__":
-    main()
+    manualCorrectionGUI()
+    updateGraph()
 
