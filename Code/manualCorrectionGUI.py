@@ -72,11 +72,6 @@ def manualCorrectionGUI():
     """
     start_time = timeit.default_timer()
     baseFolder = os.path.abspath(os.path.dirname(__file__))
-    resultFolder = os.path.abspath(os.path.dirname(__file__))
-    vesselResultName = 'vesselResultFull'
-    skeletonName = 'skeleton'
-    labelInfoName = 'labelInfo'
-    graphRepresentationName = 'GraphRepresentation'
     
     app = pg.QtGui.QApplication([])
     # w = gl.GLViewWidget()
@@ -108,7 +103,6 @@ def manualCorrectionGUI():
     plotItemCounter = 0
     #####
     skeletonCoords = np.array(np.where(skeleton != 0), dtype=np.int16).T
-    skeletonCoordsView = (skeletonCoords + offset) * affineTransform
     #####
     d2 = np.empty(vessel.shape + (4,), dtype=np.ubyte)
     d2[..., 0] = vessel * (255./(vessel.max()/1))
@@ -395,8 +389,8 @@ def updateGraph():
     Update the graph corresponding to `segmentList2`.
     """
     start_time = timeit.default_timer()
-    functionName = os.path.abspath(os.path.dirname(__file__))
-    directory = os.path.abspath(dirname)
+    functionName = inspect.currentframe().f_code.co_name
+    directory = os.path.abspath(os.path.dirname(__file__))
     
     segmentList1 = np.load(os.path.join(directory, 'segmentList.npz'))
     segmentList1 = segmentList1['segmentList']
@@ -404,6 +398,11 @@ def updateGraph():
     segmentList2 = np.load(os.path.join(directory, 'segmentListCleaned.npz'))
     segmentList2 = segmentList2['segmentList']
     segmentList2 = list(map(tuple, segmentList2))
+
+    vesselVolumeMaskFilePath = join(directory, 'vesselVolumeMask.nii.gz')
+    if not os.path.exists(vesselVolumeMaskFilePath):
+        print('Error! vesselVolumeMask.nii.gz does not exist at {}.'.format(directory))
+        return
     
     vesselVolumeImg = nib.load(os.path.join(directory, 'vesselVolumeMask.nii.gz'))
     vesselVolume = vesselVolumeImg.get_data()
