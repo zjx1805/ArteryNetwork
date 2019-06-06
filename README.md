@@ -13,14 +13,15 @@ The entire processing pipeline described in our paper is implemented here and is
 # Prerequisites
 * [3D Slicer](https://download.slicer.org/) (tested with version 4.10.0)
 * Python (tested with Python 3.6.5)
-* Numpy(tested with v1.14.3)
-* Scipy(tested with v1.1.0)
+* Numpy (tested with v1.14.3)
+* Scipy (tested with v1.1.0)
 * FSL (tested with v5.0.11): image registration
-* Nibabel(tested with v2.3.0): reading and writing nifti files
-* Skimage(tested with v0.13.1): image processing
-* Pyqtgraph(tested with v0.10.0): displaying volume and GUI related
-* Matplotlib(tested with v2.2.2): plotting
-* NetworkX(tested with v2.1): graph-related
+* Nibabel (tested with v2.3.0): reading and writing nifti files
+* Skimage (tested with v0.13.1): image processing
+* Pyqtgraph (tested with v0.10.0): displaying volume and GUI related
+* Graphviz (tested with v1.3.1): creating graph plot
+* Matplotlib (tested with v2.2.2): plotting
+* NetworkX (tested with v2.1): graph-related
 * Skeletonization ([Amy Tabb](https://data.nal.usda.gov/dataset/code-fast-and-robust-curve-skeletonization-real-world-elongated-objects)): skeletonization of vessel volume
 
 
@@ -145,6 +146,19 @@ Most of the functionalities in the pipeline are modularized and separated into d
 * segmentListCleaned.npz: A list containing all the segments (vessel branches) after manual correction.  
 * graphRepresentationCleaned.graphml: The graph containing all the segments (vessel branches) and connections corresponding to `segmentListCleaned.npz`.
 * graphRepresentationCleanedWithEdgeInfo.graphml: The graph containing all the segments (vessel branches) and connections corresponding to `segmentListCleaned.npz` with basic branch properties (length, radius, etc.,) attached.
+----
+
+**Filename:** `partitionCompartmentGUI.py`  
+**Description:** Partition the segmented vessels into different compartments.  
+**Requires:**  
+* segmentListCleaned.npz: A list containing all the segments (vessel branches) after manual correction.  
+* graphRepresentationCleanedWithEdgeInfo.graphml: The graph containing all the segments (vessel branches) and connections corresponding to `segmentListCleaned.npz` with basic branch properties (length, radius, etc.,) attached.
+* vesselVolumeMask.nii.gz: The data mask of the segmented vessel volume.
+
+**Produces:**  
+* chosenVoxelsForPartition.pkl: Contains the `initialVoxels` and `boundaryVoxels` for each compartment selected by the user.
+* partitionInfo.pkl: Contains information about nodes (`visitedVoxels`) and segments (`segmentIndexList`) within each compartment.
+
 ----
 
 **Filename:** `xx.py`  
