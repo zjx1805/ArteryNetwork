@@ -16,9 +16,24 @@ def variationalRegionGrowing(dataArray, valueMap, H=2.25, maxSegmentSize=5000):
     dataArray : ndarray
         The data volume to which the algorithm is applied.
     valueMap : ndarray
-        An array of the same size as `dataArray` indicating initial settings.
+        An array of the same size as `dataArray` indicating initial settings.  
+        The meaning of the numbers is as follows:  
+        0: inside, 1: innerbnd, 2:outerbnd, 3: outside, 4: excluded
     H : float
-        A parameter that controls
+        A parameter that controls the size of segmentation. Larger H leads to smaller segmentation.
+    maxSegmentSize : int
+        If the number of voxels segmented exceeds this limit, the program stops and returns the current result.
+
+    Returns
+    -------
+    segmented : ndarray
+        An array in which each line is the coordinate of the segmented voxel.
+    segmentedMap : ndarray
+        An array of the same size as dataArray, in which 1 means segmented voxels and 0 means background.
+    valueMap : ndarray
+        An array of the same size as `dataArray` indicating the current state.  
+        The meaning of the numbers is as follows:  
+        0: inside, 1: innerbnd, 2:outerbnd, 3: outside, 4: excluded
     """
     start_time = timeit.default_timer()
     # A = (2*np.pi)**(-0.5)
