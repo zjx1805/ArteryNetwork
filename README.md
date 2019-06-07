@@ -95,7 +95,7 @@ The GUI can be found in `manualCorrectionGUI.py`.
 
 ### Compartment partitioning
 
-We partition the artery network into several compartments based on physical locations: LMCA (starting from left middle cerebral artery)/RMCA (starting from right middle cerebral artery)/LPCA (starting from left posterior cerebral artery)/RPCA (starting from right posterior cerebral artery)/ACA (starting from anterior cerebral artery). The partitioning process is done using a GUI in `pythonFileName.py`.
+We partition the artery network into several compartments based on physical locations: LMCA (starting from left middle cerebral artery)/RMCA (starting from right middle cerebral artery)/LPCA (starting from left posterior cerebral artery)/RPCA (starting from right posterior cerebral artery)/ACA (starting from anterior cerebral artery). The partitioning process is done using a GUI in `partitionCompartmentGUI.py`.
 
 ### Morporlogical properties
 
@@ -158,6 +158,7 @@ Most of the functionalities in the pipeline are modularized and separated into d
 **Produces:**  
 * chosenVoxelsForPartition.pkl: Contains the `initialVoxels` and `boundaryVoxels` for each compartment selected by the user.
 * partitionInfo.pkl: Contains information about nodes (`visitedVoxels`) and segments (`segmentIndexList`) within each compartment.
+* graphRepresentationCleanedWithAdvancedInfo.graphml: The same graph as `graphRepresentationCleanedWithEdgeInfo` and has additional depth information.
 
 ----
 

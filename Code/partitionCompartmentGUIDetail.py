@@ -28,6 +28,7 @@ import copy
 from operator import itemgetter
 from os.path import join
 import inspect
+import myFunctions as mf
 
 class Vessel(QtGui.QWidget):
     """
@@ -154,6 +155,21 @@ class PlotObject(gl.GLViewWidget):
             setattr(self, arg, kwds[arg])
 
 class myVessel(Vessel):
+    """
+    Implements the `Vessel` base class.
+
+    To create one compartment partition (say LMCA), do the following:  
+    1. Click `LMCA` button.
+    2. Click `Label Initial Voxels` button, then right click on any voxel(s) that you would like to use and those
+       selected will become blue and larger. If you mistakenly choose one voxel, unselect it by right clicking on it
+       again, or click the `Clear Chosen Voxels` button to clear all of the chosen voxels in this step.
+    3. (Optional) Click `Label Boundary Voxels` button, then right click on any voxel(s) that serve as the boundary and
+       those selected will become red and larger.
+    4. Click `Random Walk BFS` button, and the traversed voxels and segments will become yellow and assigned to that
+       compartment.
+    5. (Optional) Repeat Step 1-4 for other compartments if necessary.
+    6. Click `Save Chosen Voxels` button to save the partition information files.
+    """
     def init_ui(self):
         self.setWindowTitle('Vessel')
         hbox = QtGui.QHBoxLayout()
@@ -173,21 +189,21 @@ class myVessel(Vessel):
         self.chosenVoxelsButtonGroup.addButton(self.labelInitialVoxelsButton, 1)
         self.chosenVoxelsButtonGroup.addButton(self.labelBoundaryVoxelsButton, 2)
         self.partitionNamesButtonGroup = QtGui.QButtonGroup()
-        self.LCAButton = QtGui.QPushButton("LCA")
-        self.LCAButton.setCheckable(True)
-        self.RCAButton = QtGui.QPushButton("RCA")
-        self.RCAButton.setCheckable(True)
-        self.PCAButton = QtGui.QPushButton("PCA")
-        self.PCAButton.setCheckable(True)
-        self.LACAButton = QtGui.QPushButton("LACA")
-        self.LACAButton.setCheckable(True)
-        self.RACAButton = QtGui.QPushButton("RACA")
-        self.RACAButton.setCheckable(True)
-        self.partitionNamesButtonGroup.addButton(self.LCAButton, 11)
-        self.partitionNamesButtonGroup.addButton(self.RCAButton, 12)
-        self.partitionNamesButtonGroup.addButton(self.PCAButton, 13)
-        self.partitionNamesButtonGroup.addButton(self.LACAButton, 14)
-        self.partitionNamesButtonGroup.addButton(self.RACAButton, 15)
+        self.LMCAButton = QtGui.QPushButton("LMCA")
+        self.LMCAButton.setCheckable(True)
+        self.RMCAButton = QtGui.QPushButton("RMCA")
+        self.RMCAButton.setCheckable(True)
+        self.ACAButton = QtGui.QPushButton("ACA")
+        self.ACAButton.setCheckable(True)
+        self.LPCAButton = QtGui.QPushButton("LPCA")
+        self.LPCAButton.setCheckable(True)
+        self.RPCAButton = QtGui.QPushButton("RPCA")
+        self.RPCAButton.setCheckable(True)
+        self.partitionNamesButtonGroup.addButton(self.LMCAButton, 11)
+        self.partitionNamesButtonGroup.addButton(self.RMCAButton, 12)
+        self.partitionNamesButtonGroup.addButton(self.ACAButton, 13)
+        self.partitionNamesButtonGroup.addButton(self.LPCAButton, 14)
+        self.partitionNamesButtonGroup.addButton(self.RPCAButton, 15)
         self.loadChosenVoselsButton = QtGui.QPushButton("Load Chosen Voxels")
         self.saveChosenVoselsButton = QtGui.QPushButton("Save Chosen Voxels")
         self.clearChosenVoselsButton = QtGui.QPushButton("Clear Chosen Voxels")
@@ -199,18 +215,16 @@ class myVessel(Vessel):
         self.loadFluidResultButton = QtGui.QPushButton("Load Fluid Result")
         self.showPressureResultButton = QtGui.QPushButton("Show Pressure Result")
         self.showVelocityResultButton = QtGui.QPushButton("Show Velocity Result")
-        self.showQuantityButton = QtGui.QPushButton("Show Quantity")
-        self.applyPressureVelocityDistributionButton = QtGui.QPushButton("Apply Pressure/Velocity Distribution")
         self.showSegmentButton = QtGui.QPushButton("Show Segment")
         self.segmentIndexBox = QtGui.QLineEdit()
 
         vbox.addWidget(self.labelInitialVoxelsButton, 1)
         vbox.addWidget(self.labelBoundaryVoxelsButton, 1)
-        vbox.addWidget(self.LCAButton, 1)
-        vbox.addWidget(self.RCAButton, 1)
-        vbox.addWidget(self.PCAButton, 1)
-        vbox.addWidget(self.LACAButton, 1)
-        vbox.addWidget(self.RACAButton, 1)
+        vbox.addWidget(self.LMCAButton, 1)
+        vbox.addWidget(self.RMCAButton, 1)
+        vbox.addWidget(self.ACAButton, 1)
+        vbox.addWidget(self.LPCAButton, 1)
+        vbox.addWidget(self.RPCAButton, 1)
         vbox.addWidget(self.loadChosenVoselsButton, 1)
         vbox.addWidget(self.saveChosenVoselsButton, 1)
         vbox.addWidget(self.clearChosenVoselsButton, 1)
@@ -222,8 +236,6 @@ class myVessel(Vessel):
         vbox.addWidget(self.loadFluidResultButton, 1)
         vbox.addWidget(self.showPressureResultButton, 1)
         vbox.addWidget(self.showVelocityResultButton, 1)
-        vbox.addWidget(self.showQuantityButton, 1)
-        vbox.addWidget(self.applyPressureVelocityDistributionButton, 1)
         vbox.addWidget(self.showSegmentButton, 1)
         vbox.addWidget(self.segmentIndexBox, 1)
         vbox.addStretch(1)
@@ -235,14 +247,14 @@ class myVessel(Vessel):
     def init_variable(self):
         self.labelInitialVoxelsButtonClicked = False
         self.labelBoundaryVoxelsButtonClicked = False
-        self.LCAButtonClicked = False
-        self.RCAButtonClicked = False
-        self.PCAButtonClicked = False
-        self.LACAButtonClicked = False
-        self.RACAButtonClicked = False
+        self.LMCAButtonClicked = False
+        self.RMCAButtonClicked = False
+        self.ACAButtonClicked = False
+        self.LPCAButtonClicked = False
+        self.RPCAButtonClicked = False
         self.chosenVoxels = {}
         self.directory = ''
-        self.buttonIDMap = {-1: 'unused', 1: 'initialVoxels', 2: 'boundaryVoxels', 11: 'LCA', 12: 'RCA', 13: 'PCA', 14: 'LACA', 15: 'RACA'}
+        self.buttonIDMap = {-1: 'unused', 1: 'initialVoxels', 2: 'boundaryVoxels', 11: 'LMCA', 12: 'RMCA', 13: 'ACA', 14: 'LPCA', 15: 'RPCA'}
         
     
     def qt_connections(self):
@@ -257,8 +269,6 @@ class myVessel(Vessel):
         self.loadFluidResultButton.clicked.connect(self.onLoadFluidResultButtonClicked)
         self.showPressureResultButton.clicked.connect(self.onShowPressureResultButtonClicked)
         self.showVelocityResultButton.clicked.connect(self.onShowVelocityResultButtonClicked)
-        self.showQuantityButton.clicked.connect(self.onShowQuantityButtonClicked)
-        self.applyPressureVelocityDistributionButton.clicked.connect(self.onApplyPressureVelocityDistributionButtonClicked)
         self.showSegmentButton.clicked.connect(self.onShowSegmentButtonClicked)
     
     def addExtraInfo(self, **kwds):
@@ -307,7 +317,6 @@ class myVessel(Vessel):
         # print(chosenPartitionName)
         if chosenPartitionName is None or chosenPartitionName not in self.plotwidget.partitionNames:
             chosenPartitionName = self.buttonIDMap[self.partitionNamesButtonGroup.checkedId()]
-            # print(self.partitionNamesButtonGroup.checkedId(), chosenPartitionName)
 
         initialVoxels = self.plotwidget.chosenVoxels[chosenPartitionName]['initialVoxels']
         boundaryVoxels = self.plotwidget.chosenVoxels[chosenPartitionName]['boundaryVoxels']
@@ -318,15 +327,10 @@ class myVessel(Vessel):
         tempDict = {voxel: chosenPartitionName for voxel in visitedVoxels}
         nx.set_node_attributes(G, tempDict, 'partitionName')
         self.plotwidget.G = G
-        # depthLevelList = [self.plotwidget.G.node[node]['depthLevel'] for node in visitedVoxels if 'depthLevel' in self.plotwidget.G.node[node]]
-        # print('Max depthLevel is {}'.format(np.max(depthLevelList)))
-        # pathDistanceList = [self.plotwidget.G.node[node]['pathDistance'] for node in visitedVoxels if 'pathDistance' in self.plotwidget.G.node[node]]
-        # print('Max pathDistance is {}'.format(np.max(pathDistanceList)))
-        # print(self.plotwidget.chosenVoxels)
+
         if len(visitedVoxels) != 0:
             self.plotwidget.partitionInfo[chosenPartitionName] = {}
             self.plotwidget.partitionInfo[chosenPartitionName]['visitedVoxels'] = visitedVoxels
-            # segmentIndexList = self.plotwidget.getPartitionSegments()
             segmentIndexList = list(np.unique(segmentIndexList)) # in case there is duplicate...
             self.plotwidget.partitionInfo[chosenPartitionName]['segmentIndexList'] = segmentIndexList
             # add segment level (based on depthLevel of voxels) to each segment
@@ -338,9 +342,6 @@ class myVessel(Vessel):
         else:
             print('No voxels visited')
         
-        # aa = [self.plotwidget.G.node[voxel]['pathDistance'] for voxel in visitedVoxels]
-        # print(aa)
-    
     def onShowPartitionsButtonClicked(self):
         colorPools = [pg.glColor('r'), pg.glColor('g'), pg.glColor('b'), pg.glColor('y'), pg.glColor('c')]
         colorPools = [[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 1], [1, 1, 0, 1], [1, 0, 1, 1], [0, 1, 1, 1]]
@@ -373,12 +374,7 @@ class myVessel(Vessel):
     
     def onLoadFluidResultButtonClicked(self):
         directory = self.directory
-        # print('c' in locals(), 'c' in globals())
-        if 'c' in globals() and 'k' in globals() and c != 0 and k != 0:
-            filename = 'fluidResult(c={}, k={}).pkl'.format(c, k)
-        else:
-            filename = 'fluidResult.pkl'
-
+        filename = 'fluidResult.pkl'
         if os.path.exists(directory + filename):
             with open(directory + filename, 'rb') as f:
                 self.plotwidget.fluidResult = pickle.load(f)
@@ -394,13 +390,6 @@ class myVessel(Vessel):
     
     def onShowVelocityResultButtonClicked(self):
         self.plotwidget.showFluidResult('Velocity')
-    
-    def onShowQuantityButtonClicked(self):
-        if 'showQuantity' in globals():
-            self.plotwidget.showQuantity(showQuantity)
-    
-    def onApplyPressureVelocityDistributionButtonClicked(self):
-        self.plotwidget.applyPressureVelocityDistribution()
     
     def onShowSegmentButtonClicked(self):
         segmentIndexInput = int(self.segmentIndexBox.text())
@@ -425,7 +414,7 @@ class myPlotObject(PlotObject):
         self.fluidResult = {}
         self.pressureVolume = np.array([]) # volume of the same size as the data volume that contains pressure from the fluid simulation
         self.velocityVolume = np.array([]) # volume of the same size as the data volume that contains velocity from the fluid simulation
-        self.partitionNames = ['LCA', 'RCA', 'PCA', 'LACA', 'RACA']
+        self.partitionNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
         for partitionName in self.partitionNames:
             self.chosenVoxels[partitionName] = {}
             for voxelCategory in ['initialVoxels', 'boundaryVoxels']:
@@ -481,32 +470,18 @@ class myPlotObject(PlotObject):
         skeletonPlotItemColor = skeletonPlotItem.color
         skeletonPlotItemSize = skeletonPlotItem.size
         visitedVoxelsArray = np.array(visitedVoxels, dtype=np.int16)
-        # depthVoxelList = [self.G.node[voxel]['depthVoxel'] for voxel in visitedVoxels]
-        # colormap = mf.generateColormap(depthVoxelList)
-        # depthLevelList = [self.G.node[voxel]['depthLevel'] for voxel in visitedVoxels]
-        # colormap = mf.generateColormap(depthLevelList)
-        # print(depthLevelList)
-        # print(colormap)
-        # skeletonPlotItemColor[self.voxelIndexArray[tuple(visitedVoxelsArray.T)], :] = colormap
-        # if visitedVoxels is an empty list, the following line will color all the voxels yellow!
         if color is None:
             color = [1, 1, 0, 1]
 
-        skeletonPlotItemColor[self.voxelIndexArray[tuple(visitedVoxelsArray.T)], :] = color # yellow
+        skeletonPlotItemColor[self.voxelIndexArray[tuple(visitedVoxelsArray.T)], :] = color 
         skeletonPlotItemSize[:] = self._voxelNormalSize
         skeletonPlotItem.setData(size=skeletonPlotItemSize, color=skeletonPlotItemColor)
-        # self.getPartitionSegments()
     
     def getPartitionSegments(self):
         chosenPartitionName = self.parent().buttonIDMap[self.parent().partitionNamesButtonGroup.checkedId()]
         voxelsVisited = self.partitionInfo[chosenPartitionName]['visitedVoxels']
         segmentIndexList = [self.voxelSegmentIndexArray[voxel] for voxel in voxelsVisited if self.G.degree(voxel) < 3]
         segmentIndexList = np.unique(segmentIndexList)
-        # self.partitionInfo[chosenPartitionName]['segmentIndexList'] = segmentIndexList
-
-        # for segmentIndex in segmentIndexList:
-        #     segmentPlotItem = self.items[self.segmentStartIndex + segmentIndex]
-        #     segmentPlotItem.setData(color=pg.glColor('r'))
 
         return segmentIndexList
     
@@ -518,7 +493,6 @@ class myPlotObject(PlotObject):
                 nodesToShow.append([node, nodeInfo['localBifurcationAmplitude']])
         
         nodesCoords = np.array([node for node, localBifurcationAmplitude in nodesToShow if localBifurcationAmplitude >= 90], dtype=np.int16)
-        # print('nodesCoords length = {}'.format(len(nodesCoords)))
         skeletonPlotItem = self.items[self.skeletonNodesStartIndex]
         skeletonPlotItemColor = skeletonPlotItem.color
         skeletonPlotItemSize = skeletonPlotItem.size
@@ -527,16 +501,20 @@ class myPlotObject(PlotObject):
         skeletonPlotItem.setData(size=skeletonPlotItemSize, color=skeletonPlotItemColor)
     
     def performFluidSimulation(self):
+        """
+        This function is deprecated! Use the function in `fluidNetwork.py` instead to do the simulation!
+        """
+        print('This function is deprecated! Use the function in `fluidNetwork.py` instead to do the simulation!')
         G = self.G
         chosenPartitionName = self.parent().buttonIDMap[self.parent().partitionNamesButtonGroup.checkedId()]
         entryPoints = self.chosenVoxels[chosenPartitionName]['initialVoxels']
         allVoxels = self.partitionInfo[chosenPartitionName]['visitedVoxels']
         segmentList = self.segmentList
         segmentIndexList = self.partitionInfo[chosenPartitionName]['segmentIndexList']
-        if chosenPartitionName == 'PCA':
+        if chosenPartitionName == 'ACA':
             # boundaryCondition = [15998, 0, 2]
             boundaryCondition = {'pressureIn': 15946} # Pascal
-        elif chosenPartitionName == 'LACA' or chosenPartitionName == 'RACA':
+        elif chosenPartitionName == 'LMCA' or chosenPartitionName == 'RMCA':
             # boundaryCondition = [15998, 0, 1.5]
             boundaryCondition = {'pressureIn': 15946}
         else:
@@ -560,7 +538,6 @@ class myPlotObject(PlotObject):
             resultADANDict = pickle.load(f)
             print('{} loaded from {}'.format(fileName, ADANFolder))
 
-        # pressureArray, velocityArray, result, GIndex = mf.fluidSimulation(G, entryPoints, allVoxels, segmentList, segmentIndexList, boundaryCondition, fluidMethod='HW', showResult='Pressure')
         pressureArray, velocityArray, result, GIndex, eqnInfoDictList = mf.fluidSimulation4(G, entryPoints, allVoxels, segmentList, segmentIndexList, segmentInfoDict, nodeInfoDict, boundaryCondition, resultADANDict, fluidMethod='HW')
         self.fluidResult[chosenPartitionName] = {}
         self.fluidResult[chosenPartitionName]['pressureArray'] = pressureArray
@@ -622,37 +599,6 @@ class myPlotObject(PlotObject):
         for chosenPartitionName in self.partitionNames:
             self.parent().onRandomWalkBFSButtonClicked(chosenPartitionName=chosenPartitionName)
 
-    def applyPressureVelocityDistribution(self):
-        if self.segmentInfoDict == {} or self.nodeInfoDict == {}:
-            self.parent().onLoadSegmentNodeInfoDictButtonClicked()
-            self.loadChosenVoxels()
-
-        chosenPartitionName = self.parent().buttonIDMap[self.parent().partitionNamesButtonGroup.checkedId()]
-        if chosenPartitionName == 'unused':
-            print('Choose a partition!')
-        else:
-            segmentInfoDict, nodeInfoDict = assignPressureVelocityDistribution(self.G, self.partitionInfo, self.segmentInfoDict, self.nodeInfoDict, self.segmentList, chosenPartitionName, option=2)
-            self.segmentInfoDict = segmentInfoDict
-            self.nodeInfoDict = nodeInfoDict
-            segmentIndexList = self.partitionInfo[chosenPartitionName]['segmentIndexList']
-            # for segmentIndex in segmentIndexList:
-            #     if 'velocityRatio' not in segmentInfoDict[segmentIndex]:
-            #         print('velocityRatio does not exist in segmentIndex={}'.format(segmentIndex))
-            k = 1.852
-            ckResult, terminalPressureResult, segmentInfoDict, nodeInfoDict = calculatePressureVelocity(self.G, self.chosenVoxels, self.partitionInfo, self.segmentInfoDict, self.nodeInfoDict, self.segmentList, chosenPartitionName, k=k, c=None)
-            self.segmentInfoDict = segmentInfoDict
-            self.nodeInfoDict = nodeInfoDict
-            # for segmentIndex in segmentIndexList:
-            #     if 'velocity' not in segmentInfoDict[segmentIndex]:
-            #         print('velocity does not exist in segmentIndex={}'.format(segmentIndex))
-            pressureArray, velocityArray = self.generatePressureVelocityArray(self.segmentList, chosenPartitionName)
-            if chosenPartitionName not in self.fluidResult:
-                self.fluidResult[chosenPartitionName] = {}
-            
-            self.fluidResult[chosenPartitionName]['pressureArray'] = pressureArray
-            self.fluidResult[chosenPartitionName]['velocityArray'] = velocityArray
-            self.updateFluidVolume(chosenPartitionName)
-    
     def generatePressureVelocityArray(self, segmentList, chosenPartitionName):
         segmentIndexList = self.partitionInfo[chosenPartitionName]['segmentIndexList']
         pressureArray = np.array([]).reshape(-1, 4)
@@ -672,9 +618,6 @@ class myPlotObject(PlotObject):
             segment = segmentList[segmentIndex]
             segmentCoords = np.array(segment)
             l = len(segment)
-            # if 'velocity' not in self.segmentInfoDict[segmentIndex]:
-            #     print(segmentIndex, self.G.degree(self.segmentList[segmentIndex][0]), self.G.degree(self.segmentList[segmentIndex][0]))
-            #     continue
             velocity = self.segmentInfoDict[segmentIndex]['velocity']
             velocities = np.full((l, 1), velocity)
             velocityArraySegment = np.hstack((segmentCoords, velocities))
@@ -682,14 +625,6 @@ class myPlotObject(PlotObject):
         
         return pressureArray, velocityArray
    
-    def showQuantity(self, showQuantity):
-        values = [info[showQuantity] for node, info in self.G.nodes(data=True) if showQuantity in info]
-        if len(values) != 0:
-            skeletonPlotItem = self.items[self.skeletonNodesStartIndex]
-            # skeletonPlotItemColor = skeletonPlotItem.color
-            color = mf.generateColormap(values).astype(np.float)
-            skeletonPlotItem.setData(color=color)
-        
     def pointSelectionLogic(self):
         currentVoxelIndex = self.currentVoxelIndex
         currentVoxel = self.currentVoxel
@@ -699,16 +634,16 @@ class myPlotObject(PlotObject):
 
         chosenVoxelsType = self.parent().buttonIDMap[self.parent().chosenVoxelsButtonGroup.checkedId()]
         chosenPartitionName = self.parent().buttonIDMap[self.parent().partitionNamesButtonGroup.checkedId()]
-        if chosenVoxelsType == 'unused' or chosenPartitionName == 'unused':# or self.pressureVolume.shape == self.shape:
-            pressuremmHg = (self.pressureVolume[tuple(currentVoxel)] - 101000) / (13560*9.8) * 1000
-            velocity = self.velocityVolume[tuple(currentVoxel)]
-            radiusVoxel = self.G.node[currentVoxel]['radius']
-            neighbors = list(self.G.neighbors(currentVoxel))
-            meanRadiusVoxel = self.G[currentVoxel][neighbors[0]]['meanRadius']
-            print('Current voxel: {}, pressure = {:.3f} mmHg, velocity = {:.3f} m/s, radius(Voxel) = {:.3f}, meanRadius(Voxel) = {:.3f}'.format(currentVoxel, pressuremmHg, velocity, radiusVoxel, meanRadiusVoxel))
-            # print('Current voxel: {}'.format(currentVoxel))
-            stop = True
-            return stop
+        # if chosenVoxelsType == 'unused' or chosenPartitionName == 'unused':# or self.pressureVolume.shape == self.shape:
+        #     pressuremmHg = (self.pressureVolume[tuple(currentVoxel)] - 101000) / (13560*9.8) * 1000
+        #     velocity = self.velocityVolume[tuple(currentVoxel)]
+        #     radiusVoxel = self.G.node[currentVoxel]['radius']
+        #     neighbors = list(self.G.neighbors(currentVoxel))
+        #     meanRadiusVoxel = self.G[currentVoxel][neighbors[0]]['meanRadius']
+        #     print('Current voxel: {}, pressure = {:.3f} mmHg, velocity = {:.3f} m/s, radius(Voxel) = {:.3f}, meanRadius(Voxel) = {:.3f}'.format(currentVoxel, pressuremmHg, velocity, radiusVoxel, meanRadiusVoxel))
+        #     # print('Current voxel: {}'.format(currentVoxel))
+        #     stop = True
+        #     return stop
 
         chosenVoxelsList = self.chosenVoxels[chosenPartitionName][chosenVoxelsType]
         if chosenVoxelsType == 'initialVoxels':
