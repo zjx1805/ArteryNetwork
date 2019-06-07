@@ -29,6 +29,10 @@ import copy
 from scipy.stats import binned_statistic
 from scipy.optimize import fsolve, fmin_tnc, least_squares, differential_evolution, minimize, fmin_l_bfgs_b
 
+"""
+This file contains a collection of frequently used auxiliary functions.
+"""
+
 def randomWalkBFS(G, initialVoxels, boundaryVoxels):
     """
     Traverse the graph from the specified beginning voxel(s) and bounded by `boundaryVoxels`.
@@ -176,3 +180,98 @@ def generateColormap(data, maxValue=None):
     colormap[:, 0:3] = jet[inds]/255.0
 
     return colormap
+
+def splineInterpolation(coords, pointLoc, smoothing=None, return_derivative=False, k=3, w=None):
+    '''
+    Use spline curve to fit the coords and return the derivative at desired point.
+
+    Paremeters
+    ----------
+    coords : array_like
+        A sequence of coordinates to be fit with a spline.
+    pointLoc : int
+        The index of the point at which the interpolated value/derivative will be returned.
+    smoothing : float, optional
+        Controls the smoothness of the spline.
+    return_derivative : bool, optional
+        If True, return interpolated derivative at the specified location. Otherwise, return interpolated value.
+    k : int, optional
+        Degree of the spline.
+    w : array_like
+        A sequence of the same length as `coords` and will be treated as weights during interpolation.
+    
+    Returns
+    -------
+    tck : tuple
+        A tuple (t,c,k) containing the vector of knots, the B-spline coefficients, and the degree of the spline.
+    u : array
+        An array of the values of the parameter.
+    value : float
+        Interpolated value at the specified location.
+    derivative : float
+        Interpolated 1st normalized derivative vector at the specified location.
+    '''
+    
+    dataLength = len(coords)
+    if smoothing is None:
+        if dataLength <= 20:
+            smoothing = 100 # 2 * dataLength  # dataLength + np.sqrt(2 * dataLength)
+        else:
+            smoothing = dataLength + np.sqrt(2 * dataLength)
+    
+    if len(coords) <= k:
+        k = len(coords) - 1
+    
+    if w is None:
+        w = np.ones((len(coords[:, 0]),))
+
+    tck, u = interpolate.splprep([coords[:, 0], coords[:, 1], coords[:, 2]], s=smoothing, k=k, w=w)
+    v1, v2, v3 = interpolate.splev(pointLoc, tck, der=0)
+    if len(pointLoc) == 1:
+        value = np.array([v1, v2, v3])
+    else:
+        value = np.hstack((v1.reshape(-1,1), v2.reshape(-1,1), v3.reshape(-1,1)))
+
+    if return_derivative:
+        d1, d2, d3 = interpolate.splev(pointLoc, tck, der=1)
+        if len(pointLoc) == 1:
+            derivative = np.array([d1, d2, d3])
+            derivative /= norm(derivative)
+        else:
+            derivative = np.hstack((d1.reshape(-1,1), d2.reshape(-1,1), d3.reshape(-1,1)))
+            normList = np.array(list(map(norm, derivative))).reshape(-1, 1)
+            derivative = derivative / normList
+
+        return tck, u, value, derivative
+    else:
+        return tck, u, value
+
+def curvature_by_triangle(points):
+    """
+    Calculate the curvature using the formula: kappa = 4S/(abc), where a,b,c are three points and S is the area of the
+    triangle formed by the three points. S = np.sqrt((a+(b+c))*(c-(a-b))*(c+(a-b))*(a+(b-c))) / 4   # Heron's formula
+    for triangle's surface (a>=b>=c) 
+    [Credit: https://books.google.com/books?hl=en&id=7J52J4GrsJkC&pg=PA45#v=onepage&q&f=false]
+
+    Parameters
+    ----------
+    points : array_like
+        A sequence of three points with which to calculate the approximate curvature.
+    
+    Returns
+    -------
+    kappa : float
+        Approximated curvature value.
+    """
+    A, B, C = np.array(points) # points is a 3*N array, where N is the dimension
+    a, b, c = norm(A-B), norm(A-C), norm(B-C)
+    c, b, a = np.sort([a, b, c]) # make sure a>=b>=c
+    temp = (a+(b+c))*(c-(a-b))*(c+(a-b))*(a+(b-c))
+    if temp < 0:
+        S = 0
+    else:
+        S = np.sqrt(temp) / 4
+        
+    kappa = 4 * S / (a * b * c)
+
+    return kappa

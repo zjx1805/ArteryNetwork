@@ -162,6 +162,22 @@ Most of the functionalities in the pipeline are modularized and separated into d
 
 ----
 
+**Filename:** `graphRelated.py`  
+**Description:** A collection of functions used to calculate morphological properties and creating plots.  
+**Requires:**  
+* chosenVoxelsForPartition.pkl: Contains the `initialVoxels` and `boundaryVoxels` for each compartment selected by the user.
+* partitionInfo.pkl: Contains information about nodes (`visitedVoxels`) and segments (`segmentIndexList`) within each compartment.
+* graphRepresentationCleanedWithAdvancedInfo.graphml: The same graph as `graphRepresentationCleanedWithEdgeInfo` and has additional depth information.
+* segmentListCleaned.npz: A list containing all the segments (vessel branches) after manual correction.  
+* nodeInfoDict.pkl: A dictionary containing information about all bifurcations.  
+* segmentInfoDict.pkl: A dictionary containing information about all the segments in `segmentListCleaned.npz`.
+
+**Produces:**  
+* nodeInfoDict.pkl: A dictionary containing information about all bifurcations.  
+* segmentInfoDict.pkl: A dictionary containing information about all the segments in `segmentListCleaned.npz`.
+
+----
+
 **Filename:** `xx.py`  
 **Description:** aa  
 **Requires:**  
