@@ -49,7 +49,7 @@ In case you have multiple sets of MR images of a same subject depicting differen
 
 ### Skull stripping
 
-We use the `Swiss Skull Stripper` module with default parameters to extract the brain volume from the MR images. Note that although the default atlas should give you a nice brain volume, most of the CoW (Circle of Wills) region is not included. Besides, it might miss small areas at the surface of the brain. You can manually add these regions by loading the resulting volume into the `Segment Editor` module and use the `brush` tool to paint the regions you want to add.
+We use the `Swiss Skull Stripper` module with default parameters to extract the brain volume from the MR images. Note that although the default atlas should give you a nice brain volume, most of the CoW (Circle of Willis) region is not included. Besides, it might miss small areas at the surface of the brain. You can manually add these regions by loading the resulting volume into the `Segment Editor` module and use the `brush` tool to paint the regions you want to add.
 
 ## Vessel segmentation
 
