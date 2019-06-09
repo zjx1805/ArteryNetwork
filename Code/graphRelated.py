@@ -661,6 +661,9 @@ def reduceGraph(G, segmentList, segmentIndexList):
     return DG
 
 def statisticsPerPartition():
+    """
+    Output morphological properties per compartment.
+    """
     print('Running statisticsPerPartition...')
     start_time = timeit.default_timer()
     directory = os.path.abspath(os.path.dirname(__file__))
@@ -687,7 +690,7 @@ def statisticsPerPartition():
 
 def statisticsPerPartition2():
     '''
-    Only three partitions: PCA (LPCA+RPCA), MCA (LMCA+RMCA), ACA
+    Output morphological properties of three partitions: PCA (LPCA+RPCA), MCA (LMCA+RMCA), ACA
     '''
     print('Running statisticsPerPartition2...')
     start_time = timeit.default_timer()
@@ -701,19 +704,19 @@ def statisticsPerPartition2():
     with open(join(directory, 'partitionInfo.pkl'), 'rb') as f:
         partitionInfo = pickle.load(f)
     
-    segmentListACA = [segmentList[ii] for ii in (list(partitionInfo['LACA']['segmentIndexList']) +  list(partitionInfo['RACA']['segmentIndexList']))]
-    print('Partition ACA:')
-    print((list(partitionInfo['LACA']['segmentIndexList']) +  list(partitionInfo['RACA']['segmentIndexList'])))
+    segmentListACA = [segmentList[ii] for ii in (list(partitionInfo['LPCA']['segmentIndexList']) +  list(partitionInfo['RPCA']['segmentIndexList']))]
+    print('Partition PCA:')
+    print((list(partitionInfo['LPCA']['segmentIndexList']) +  list(partitionInfo['RPCA']['segmentIndexList'])))
     nodeInfoDict, segmentInfoDict = calculateProperty(G, segmentListACA, spacing=spacing, skipUncategorizedVoxels=True)
 
-    segmentListMCA = [segmentList[ii] for ii in (list(partitionInfo['LCA']['segmentIndexList']) +  list(partitionInfo['RCA']['segmentIndexList']))]
+    segmentListMCA = [segmentList[ii] for ii in (list(partitionInfo['LMCA']['segmentIndexList']) +  list(partitionInfo['RMCA']['segmentIndexList']))]
     print('Partition MCA:')
-    print((list(partitionInfo['LCA']['segmentIndexList']) +  list(partitionInfo['RCA']['segmentIndexList'])))
+    print((list(partitionInfo['LMCA']['segmentIndexList']) +  list(partitionInfo['RMCA']['segmentIndexList'])))
     nodeInfoDict, segmentInfoDict = calculateProperty(G, segmentListMCA, spacing=spacing, skipUncategorizedVoxels=True)
 
-    segmentListPCA = [segmentList[ii] for ii in list(partitionInfo['PCA']['segmentIndexList'])]
-    print('Partition PCA:')
-    print(list(partitionInfo['PCA']['segmentIndexList']))
+    segmentListPCA = [segmentList[ii] for ii in list(partitionInfo['ACA']['segmentIndexList'])]
+    print('Partition ACA:')
+    print(list(partitionInfo['ACA']['segmentIndexList']))
     nodeInfoDict, segmentInfoDict = calculateProperty(G, segmentListPCA, spacing=spacing, skipUncategorizedVoxels=True)
 
     elapsed = timeit.default_timer() - start_time
