@@ -275,3 +275,92 @@ def curvature_by_triangle(points):
     kappa = 4 * S / (a * b * c)
 
     return kappa
+
+def linePlot(xList, yList, ax, bins=10, integerBinning=False, statistic='count', xlabel=None, ylabel=None, legendLabelList=None):
+    """
+    Create a line plot with binning based on `xList` and statistics based on `yList`.
+
+    Parameters
+    ----------
+    xList : list
+        A list of X coordinates of the data.
+    yList : list
+        A list of Y coordinates of the data.
+    ax : Matplotlib axes object
+        The axis in which the figure will be drawn.
+    bins : int
+        Number of bins for the `xList`.
+    integerBinning : bool, optional
+        If True, the thresholds of the bins will be integers.
+    statistic : str, optional
+        The type of statistics to be calculated, see function `binned_statistic` for available options.
+    xlabel : str, optional
+        The label of X axis.
+    ylabel : str, optional
+        The label of Y axis.
+    legendLabelList : list, optional
+        A list of legends to be used.
+    """
+    multipleEntries = False
+    if type(xList) == list and type(xList[0]) == list:
+        assert len(xList) == len(yList) == len(legendLabelList), 'xList, yList and legendLabelList need to have the same length'
+        multipleEntries = True
+
+    for ii in range(len(xList)):
+        x, y = xList[ii], yList[ii]
+        xMin, xMax = np.min(x), np.max(x)
+        if integerBinning:
+            
+            if type(bins) == int:
+                binSpace = np.floor((xMax - xMin) / bins)
+                binSpace = 1 if binSpace == 0 else binSpace
+                binEdges = np.arange(xMin, xMax, binSpace)
+                if binEdges[-1] != xMax:
+                    binEdges = np.append(binEdges[:-1], xMax)
+
+            elif type(bins) == str:
+                if bins == 'auto':
+                    binEdges = np.arange(xMin, xMax + 1)
+        else:
+            binEdges = np.linspace(xMin, xMax, bins)
+        
+        count, _, _ = binned_statistic(x, y, statistic=statistic, bins=binEdges)
+        ax.plot(binEdges[:-1], count, 'o-', label=legendLabelList[ii])
+        
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    if multipleEntries:
+        ax.legend(loc='best')
+
+def boxPlotWithWhiskers(values, ax, positions=None, whis='range', xlabel=None, ylabel=None, showYLabel=True, xTickLabelSize=10):
+    """
+    Create a box plot with whiskers.
+
+    Parameters
+    ----------
+    values : array_like
+        The input data.
+    ax : Matplotlib axes object
+        The axis in which the figure will be drawn.
+    positions : array_like, optional
+        Set the positions of the boxes. See function `boxplot` for details.
+    whis : float, sequence, or string (default = 'range'), optional
+        See function `boxplot` for details.
+    xlabel : str, optional
+        The label of X axis.
+    ylabel : str, optional
+        The label of Y axis.
+    showYLabel : bool, optional
+        If False, hide Y axis label.
+    xTickLabelSize : float, optional
+        Set the font size of the X axis tick labels.
+    """
+    
+    if positions is None:
+        positions = list(range(1, len(values) + 1))
+
+    ax.boxplot(values, widths=0.8 * np.mean(np.array(positions[1:]) - np.array(positions[:-1])), positions=positions, whis=whis)
+    ax.set_xlabel(xlabel)
+    ax.set_xticklabels(ax.get_xticklabels(), fontsize=xTickLabelSize)
+    if showYLabel:
+        ax.set_ylabel(ylabel)

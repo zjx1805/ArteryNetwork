@@ -722,21 +722,37 @@ def statisticsPerPartition2():
     elapsed = timeit.default_timer() - start_time
     print('Elapsed: {} sec'.format(elapsed))
 
-
-def fig1():
+def createPlots():
     """
-    Figure S1, subplot 1-8
+    Create plots that are used in our paper.
     """
+    start_time = timeit.default_timer()
     # Load files #
     directory = os.path.abspath(os.path.dirname(__file__))
     result = loadBasicFiles(directory=directory)
     G, segmentList, segmentInfoDict, nodeInfoDict = itemgetter('G', 'segmentList', 'segmentInfoDict', 'nodeInfoDict')(result)
     chosenVoxels, partitionInfo, resultADANDict = itemgetter('chosenVoxels', 'partitionInfo', 'resultADANDict')(result)
+
+    fig11(segmentInfoDict, nodeInfoDict, isLastFigure=False) # radius vs graph level # GBM_Radius vs Graph level_Compartment (4)
+    fig11b(segmentInfoDict, nodeInfoDict, isLastFigure=False) # radius vs graph level # GBM_Radius vs Graph level_Compartment (5)
+    fig12(segmentInfoDict, nodeInfoDict, isLastFigure=False) # curvature distribution
+    fig13(segmentInfoDict, nodeInfoDict, isLastFigure=False) # max curvature vs graph level
+    fig18(segmentInfoDict, nodeInfoDict, isLastFigure=False) # mean curvature vs branch length
+
+    plt.show()
     
-    partitionNames = ['LCA', 'RCA', 'PCA', 'LACA', 'RACA']
+    elapsed = timeit.default_timer() - start_time
+    print('Elapsed: {} sec'.format(elapsed))
+
+def fig1(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Figure S1, subplot 1-8
+    """
     partitionNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
     actualNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
     fig = plt.figure(1, figsize=(15, 8))
+    plt.subplots_adjust(left=0.04, right=0.96, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
+
     subplotCounter = 1
     # Path length distribution per partition
     valuesList = []
@@ -797,7 +813,7 @@ def fig1():
     mf.linePlot(attribute1ValuesList, attribute2ValuesList, ax, bins='auto', integerBinning=True, statistic='count', xlabel='Graph Level', ylabel='# of nodes', legendLabelList=actualNames)
 
     # number of bifurcations vs graph level (left/right)
-    names = [['LCA', 'LACA'], ['RCA', 'RACA']]
+    names = [['LMCA', 'LPCA'], ['RMCA', 'RPCA']]
     attribute1, attribute2 = 'depthLevel', 'type'
     attribute1ValuesList, attribute2ValuesList = [], []
     for partitionName in names:
@@ -845,9 +861,9 @@ def fig1():
     
     ax = fig.add_subplot(2, 4, 6)
     mf.linePlot(attribute1ValuesList, attribute2ValuesList, ax, bins='auto', integerBinning=True, statistic='count', xlabel='Graph Level', ylabel='# of nodes', legendLabelList=['Terminating', 'Bifurcating'])
-    aa = [node for node, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == 'bifurcating']
-    bb = [node for node, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == 'terminating']
-    print(len(aa), len(bb))
+    # aa = [node for node, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == 'bifurcating']
+    # bb = [node for node, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == 'terminating']
+    # print(len(aa), len(bb))
 
     # mean radius distribution per partition
     valuesList = []
@@ -876,7 +892,7 @@ def fig1():
     # mean radius distribution for left/right brain
     valuesList = []
     attribute = 'meanRadius'
-    names = [['LCA', 'LACA'], ['RCA', 'RACA']]
+    names = [['LMCA', 'LPCA'], ['RMCA', 'RPCA']]
     dictUsed = segmentInfoDict
     weightsList = []
     for partitionName in names:
@@ -887,10 +903,659 @@ def fig1():
     
     ax = fig.add_subplot(2, 4, 8)
     n, bins, _ = ax.hist(valuesList, weights=weightsList, label=['Left', 'Right'])
-    print(n)
+    # print(n)
     ax.legend(loc='upper right')
     ax.set_xlabel('Mean radius (mm)')
     ax.set_ylabel('Frequency')
-    
 
-    plt.subplots_adjust(left=0.04, right=0.96, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
+    if isLastFigure:
+        plt.show()
+
+def fig2(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Figure S1B
+    """
+    fig = plt.figure(2, figsize=(15, 3))
+    plt.subplots_adjust(left=0.05, right=0.96, top=0.90, bottom=0.15, wspace=0.3, hspace=0.4)
+    # branch length vs graph level
+    attribute1, attribute2 = 'segmentLevel', 'pathLength'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info] # mm
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Branch length (mm)', xTickLabelSize=7)
+
+    # branch length (terminating) vs graph level
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'pathLength', 'type'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'terminating']
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'terminating'] # mm
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Terminating branch length (mm)', xTickLabelSize=7)
+    pathLengthTerminating = attribute2List
+    
+    # branch length (bifurcating) vs graph level (2D/3D)
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'pathLength', 'type'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'bifurcating']
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'bifurcating'] # mm
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Bifurcating branch length (mm)', xTickLabelSize=7)
+    pathLengthBifurcating = attribute2List
+
+    # voxel level vs gaph level
+    attribute1, attribute2 = 'depthLevel', 'depthVoxel'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Voxel level', xTickLabelSize=7)
+
+    # one sided T-test between branch length of bifurcating/terminating vessels (t < 0 means less than relationship)
+    # ttest_ind performs two-sided T test and the resulting p value needs to be halfed
+    tValue, pValue = ttest_ind(pathLengthBifurcating, pathLengthTerminating)
+    meanPathLengthTerminating = np.mean(pathLengthTerminating)
+    meanPathLengthBifurcating = np.mean(pathLengthBifurcating)
+    factor = (meanPathLengthTerminating - meanPathLengthBifurcating) / meanPathLengthBifurcating
+    print('Path length between bifurcating and terminating branches: t = {}, p = {} (t < 0 means less than relationship), factor = {}.'.format(tValue, pValue/2, factor))
+
+    if isLastFigure:
+        plt.show()
+
+def fig3(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Figure S1C
+    """
+    fig = plt.figure(3, figsize=(15, 3))
+    plt.subplots_adjust(left=0.05, right=0.96, top=0.90, bottom=0.15, wspace=0.3, hspace=0.4)
+    # tortuosity (terminating) vs graph level
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'tortuosity', 'type'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'terminating']
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'terminating']
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Terminating tortuosity', xTickLabelSize=7)
+
+    # tortuosity (bifurcating) vs graph level
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'tortuosity', 'type'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'bifurcating']
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'bifurcating']
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Bifurcating tortuosity', xTickLabelSize=7)
+    tortuosityBifurcating = attribute2List
+
+    # voxel level (terminating) vs graph level
+    attribute1, attribute2, attribute3 = 'depthLevel', 'pathDistance', 'type'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'terminating']
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'terminating']
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Voxel level', ylabel='Terminating path distance (mm)', xTickLabelSize=7)
+    tortuosityTerminating = attribute2List
+
+    # voxel level (bifurcating) vs graph level
+    attribute1, attribute2, attribute3 = 'depthLevel', 'pathDistance', 'type'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'bifurcating']
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == 'bifurcating']
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Voxel level', ylabel='Bifurcating path distance (mm)', xTickLabelSize=7)
+
+    # one sided T-test between branch length of bifurcating/terminating vessels (t < 0 means less than relationship)
+    # ttest_ind performs two-sided T test and the resulting p value needs to be halfed
+    tValue, pValue = ttest_ind(tortuosityBifurcating, tortuosityTerminating)
+    meanTortuosityBifurcating = np.mean(tortuosityBifurcating)
+    meanTortuosityTerminating = np.mean(tortuosityTerminating)
+    factor = (meanTortuosityTerminating - meanTortuosityBifurcating) / meanTortuosityBifurcating
+    print('Tortuosity between bifurcating and terminating branches: t = {}, p = {} (t < 0 means less than relationship), factor = {}'.format(tValue, pValue/2, factor))
+
+    if isLastFigure:
+        plt.show()
+
+def fig4(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Figure S1D
+    """
+    fig = plt.figure(3, figsize=(15, 3))
+    plt.subplots_adjust(left=0.05, right=0.96, top=0.90, bottom=0.15, wspace=0.3, hspace=0.4)
+    # localBifurcationAmplitude vs graph level
+    attribute1, attribute2 = 'depthLevel', 'localBifurcationAmplitude'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Local bifurcation amplitude (deg)', xTickLabelSize=7)
+    localBifurcationAmplitudes = attribute2List
+
+    # remoteBifurcationAmplitude vs graph level
+    attribute1, attribute2 = 'depthLevel', 'remoteBifurcationAmplitude'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Remote bifurcation amplitude (deg)', xTickLabelSize=7)
+    remoteBifurcationAmplitudes = attribute2List
+
+    # local bifurcation tilt vs graph level
+    attribute1, attribute2 = 'depthLevel', 'localBifurcationTilt'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Local bifurcation tilt (deg)', xTickLabelSize=7)
+
+    # remote bifurcation tilt vs graph level
+    attribute1, attribute2 = 'depthLevel', 'remoteBifurcationTilt'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Remote bifurcation tilt (deg)', xTickLabelSize=7)
+    
+    # one sided T-test between local/remote bifurcation amplitude (t < 0 means less than relationship)
+    # ttest_ind performs two-sided T test and the resulting p value needs to be halfed
+    tValue, pValue = ttest_ind(localBifurcationAmplitudes, remoteBifurcationAmplitudes)
+    meanLocalBifurcationAmplitude = np.mean(localBifurcationAmplitudes)
+    meanRemoteBifurcationAmplitude = np.mean(remoteBifurcationAmplitudes)
+    factor = (meanRemoteBifurcationAmplitude - meanLocalBifurcationAmplitude) / meanLocalBifurcationAmplitude
+    print('Local/Remote bifurcating amplitude: t = {}, p = {} (t < 0 means less than relationship), factor = {}'.format(tValue, pValue/2, factor))
+
+    if isLastFigure:
+        plt.show()
+
+def fig5(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Not used in our paper.
+    """
+    fig = plt.figure(3, figsize=(15, 3))
+    plt.subplots_adjust(left=0.05, right=0.96, top=0.90, bottom=0.15, wspace=0.3, hspace=0.4)
+    # localBifurcationTorque vs graph level
+    attribute1, attribute2 = 'segmentLevel', 'localBifurcationTorque'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Local bifurcation torque (deg)', xTickLabelSize=7)
+
+    # aspect ratio vs graph level
+    attribute1, attribute2 = 'segmentLevel', 'aspectRatio'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) 
+
+    ax = fig.add_subplot(1, 4, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Aspect ratio', xTickLabelSize=7)
+
+    # length ratio vs graph level
+    attribute1, attribute2 = 'depthLevel', 'lengthRatio'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Length ratio', xTickLabelSize=7)
+
+    # min radius ratio vs graph level
+    attribute1, attribute2 = 'depthLevel', 'minRadiusRatio'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Min radius ratio', xTickLabelSize=7)
+    
+    if isLastFigure:
+        plt.show()
+
+def fig6(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Figure S1E
+    """
+    fig = plt.figure(3, figsize=(15, 3))
+    plt.subplots_adjust(left=0.05, right=0.96, top=0.90, bottom=0.15, wspace=0.3, hspace=0.4)
+    # max radius ratio vs graph level
+    attribute1, attribute2 = 'depthLevel', 'maxRadiusRatio'
+    dictUsed = nodeInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Max radius ratio', xTickLabelSize=7)
+
+    # mean radius vs branch length
+    attribute1, attribute2 = 'pathLength', 'meanRadius'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    # y, binEdges = np.histogram(attribute1List, bins=np.linspace(0, 1.05*np.max(attribute1List), num=8))
+    binEdges = np.ceil(np.linspace(0, 1.01*np.max(attribute1List), num=10))
+    bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+    binIndices = np.digitize(attribute1List, bins=binEdges)
+    # positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for binIndex in np.unique(binIndices):
+        locs = np.nonzero(binIndices == binIndex)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=bincenters, whis='range', xlabel='Branch length (mm)', ylabel='Mean radius (mm)', xTickLabelSize=7)
+    ax.set_xlim([0,1.01*np.max(attribute1List)])
+    # ax.tick_params(axis='x', rotation=70)
+
+    # sigma vs branch length
+    attribute1, attribute2 = 'pathLength', 'sigma'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    binEdges = np.ceil(np.linspace(0, 1.01*np.max(attribute1List), num=10))
+    bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+    binIndices = np.digitize(attribute1List, bins=binEdges)
+    # positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for binIndex in np.unique(binIndices):
+        locs = np.nonzero(binIndices == binIndex)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=bincenters, whis='range', xlabel='Branch length (mm)', ylabel='Mean branch radius sigma (mm)', xTickLabelSize=7)
+    ax.set_xlim([0,1.01*np.max(attribute1List)])
+    # ax.tick_params(axis='x', rotation=70)
+
+    # mean radius vs sigma
+    attribute1, attribute2 = 'meanRadius', 'sigma'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    attribute2List = [info[attribute2]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info]
+    binEdges = np.linspace(0, np.max(attribute1List), num=10)
+    bincenters = np.round(0.5*(binEdges[1:]+binEdges[:-1]), 2)
+    binIndices = np.digitize(attribute1List, bins=binEdges)
+    # positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for binIndex in np.unique(binIndices):
+        locs = np.nonzero(binIndices == binIndex)[0]
+        values.append((attribute2Array[locs]).tolist()) # mm
+
+    ax = fig.add_subplot(1, 4, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=bincenters, whis='range', xlabel='Mean branch radius (mm)', ylabel='Mean branch radius sigma (mm)', xTickLabelSize=7)
+    ax.set_xlim([0,1.05*np.max(attribute1List)])
+    # ax.tick_params(axis='x', rotation=70)
+
+    if isLastFigure:
+        plt.show()
+
+def fig11(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Radius vs graph level per compartment (4)
+    """
+    fig = plt.figure(11, figsize=(10, 6))
+    plt.subplots_adjust(left=0.06, right=0.94, top=0.94, bottom=0.08, wspace=0.3, hspace=0.4)
+
+    # mean radius vs branch length
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'LMCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.25*attribute2Array[locs]).tolist()) # Unit: mm for radius
+    ax = fig.add_subplot(2, 2, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    ax.set_ylim(0.2, 1.6)
+    ax.set_title('LMCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'RMCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.25*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(2, 2, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    ax.set_ylim(0.2, 1.6)
+    ax.set_title('RMCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'LPCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.25*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(2, 2, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    ax.set_ylim(0.2, 1.6)
+    ax.set_title('LPCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'RPCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.25*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(2, 2, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    ax.set_ylim(0.2, 1.6)
+    ax.set_title('RPCA')
+
+    if isLastFigure:
+        plt.show()
+
+def fig11b(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Radius vs graph level per compartment (5)
+    """
+    fig = plt.figure(11, figsize=(15, 3))
+    plt.subplots_adjust(left=0.05, right=0.96, top=0.90, bottom=0.15, wspace=0.3, hspace=0.4)
+
+    # mean radius vs branch length
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'LMCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.4*attribute2Array[locs]).tolist()) # Unit: mm for radius
+    ax = fig.add_subplot(1, 5, 1)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    # ax.set_ylim(0.2,2.5)
+    ax.set_title('LMCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'RMCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.4*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(1, 5, 2)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    # ax.set_ylim(0.2,2.5)
+    ax.set_title('RMCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'LPCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.4*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(1, 5, 3)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    # ax.set_ylim(0.2,2.5)
+    ax.set_title('LPCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'RPCA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.4*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(1, 5, 4)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    # ax.set_ylim(0.2,2.5)
+    ax.set_title('RPCA')
+
+    attribute1, attribute2, attribute3 = 'segmentLevel', 'meanRadius', 'partitionName'
+    partitionName = 'ACA'
+    dictUsed = segmentInfoDict
+    attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+    positions = np.sort(np.unique(attribute1List))
+    values = []
+    attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+    for segmentLevel in positions:
+        locs = np.nonzero(attribute1Array == segmentLevel)[0]
+        values.append((0.4*attribute2Array[locs]).tolist())
+    ax = fig.add_subplot(1, 5, 5)
+    mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean radius (mm)')
+    # ax.set_ylim(0.2,2.5)
+    ax.set_title('ACA')
+
+    if isLastFigure:
+        plt.show()
+
+def fig12(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Curvature distribution
+    """
+    datasetName = 'Ron'
+    ## Curvature ##
+    fig = plt.figure(12, figsize=(15, 8))
+    plt.subplots_adjust(left=0.06, right=0.94, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
+    partitionNames = ['LMCA', 'RMCA', 'LPCA', 'RPCA', 'ACA']
+    subplotIndex = 1
+
+    ## curvature distribution per partition ##
+    for partitionName in partitionNames:
+        attribute1, attribute2 = 'meanCurvatureAveragedInmm', 'partitionName'
+        dictUsed = segmentInfoDict
+        attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and info[attribute2] == partitionName] # 
+        ax = fig.add_subplot(2, 4, subplotIndex)
+        ax.hist(attribute1List)
+        ax.set_xlabel('Mean curvature (mm^-1)')
+        ax.set_ylabel('Count')
+        ax.hist(attribute1List)
+        ax.set_title('{}, {}'.format(partitionName, datasetName))
+
+        subplotIndex += 1
+    
+    if isLastFigure:
+        plt.show()
+
+def fig13(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Max curvature vs graph level
+    """
+    datasetName = 'Ron'
+    ## Curvature ##
+    fig = plt.figure(13, figsize=(15, 8))
+    plt.subplots_adjust(left=0.06, right=0.94, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
+    partitionNames = ['LMCA', 'RMCA', 'LPCA', 'RPCA', 'ACA']
+    subplotIndex = 1
+
+    ## curvature vs graph level per partition ##
+    for partitionName in partitionNames:
+        attribute1, attribute2, attribute3 = 'segmentLevel', 'meanCurvatureAveragedInmm', 'partitionName'
+        dictUsed = segmentInfoDict
+        attribute1List = [info[attribute1] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName]
+        attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName] # 
+        positions = np.sort(np.unique(attribute1List))
+        values = []
+        attribute1Array, attribute2Array = np.array(attribute1List), np.array(attribute2List)
+        for segmentLevel in positions:
+            locs = np.nonzero(attribute1Array == segmentLevel)[0]
+            values.append((attribute2Array[locs]).tolist())
+
+        ax = fig.add_subplot(2, 4, subplotIndex)
+        mf.boxPlotWithWhiskers(values, ax, positions=positions, whis='range', xlabel='Graph level', ylabel='Mean curvature (mm^-1)')
+        ax.set_title('{}, {}'.format(partitionName, datasetName))
+
+        subplotIndex += 1
+    
+    if isLastFigure:
+        plt.show()
+
+def fig18(segmentInfoDict, nodeInfoDict, isLastFigure=True):
+    """
+    Mean curvature vs graph level
+    """
+    datasetName = 'Ron'
+    ## Curvature ##
+    fig = plt.figure(18, figsize=(15, 8))
+    plt.subplots_adjust(left=0.06, right=0.94, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
+    partitionNames = ['LMCA', 'RMCA', 'LPCA', 'RPCA', 'ACA']
+    subplotIndex = 1
+
+    ## curvature vs graph level per partition ##
+    for partitionName in partitionNames:
+        attribute1, attribute2, attribute3 = 'pathLength', 'meanCurvatureAveragedInmm', 'partitionName'
+        dictUsed = segmentInfoDict
+        attribute1List = [info[attribute1]*0.25 for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName] # mm
+        attribute2List = [info[attribute2] for _, info in dictUsed.items() if attribute1 in info and attribute2 in info and attribute3 in info and info[attribute3] == partitionName] # 
+        positions = np.sort(np.unique(attribute1List))
+
+        ax = fig.add_subplot(2, 4, subplotIndex)
+        ax.plot(attribute1List, attribute2List, 'bo')
+        ax.set_xlabel('Branch length (mm)')
+        ax.set_ylabel('Mean curvature (mm^-1)')
+        ax.set_title('{}, {}'.format(partitionName, datasetName))
+
+        subplotIndex += 1
+    
+    if isLastFigure:
+        plt.show()
+
