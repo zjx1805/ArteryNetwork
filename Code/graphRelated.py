@@ -721,3 +721,176 @@ def statisticsPerPartition2():
 
     elapsed = timeit.default_timer() - start_time
     print('Elapsed: {} sec'.format(elapsed))
+
+
+def fig1():
+    """
+    Figure S1, subplot 1-8
+    """
+    # Load files #
+    directory = os.path.abspath(os.path.dirname(__file__))
+    result = loadBasicFiles(directory=directory)
+    G, segmentList, segmentInfoDict, nodeInfoDict = itemgetter('G', 'segmentList', 'segmentInfoDict', 'nodeInfoDict')(result)
+    chosenVoxels, partitionInfo, resultADANDict = itemgetter('chosenVoxels', 'partitionInfo', 'resultADANDict')(result)
+    
+    partitionNames = ['LCA', 'RCA', 'PCA', 'LACA', 'RACA']
+    partitionNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
+    actualNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
+    fig = plt.figure(1, figsize=(15, 8))
+    subplotCounter = 1
+    # Path length distribution per partition
+    valuesList = []
+    bincentersList, yList = [], []
+    for partitionName in partitionNames:
+        segmentsInfoList = [segmentInfo for _, segmentInfo in segmentInfoDict.items() if 'partitionName' in segmentInfo and segmentInfo['partitionName'] == partitionName]
+        values = [segmentInfo['pathLength']*0.25 for segmentInfo in segmentsInfoList] # mm
+        valuesList.append(values)
+        weights = (np.zeros_like(values) + 1. / len(values)).tolist()
+        y,binEdges = np.histogram(values, weights=weights)
+        bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+        bincentersList.append(bincenters)
+        yList.append(y)
+    
+    ax = fig.add_subplot(2, 4, 1)
+    # ax.hist(valuesList, label=actualNames)
+    for ii in range(len(yList)):
+        bincenters, y = bincentersList[ii], yList[ii]
+        ax.plot(bincenters, y, 'o-', label=actualNames[ii])
+    ax.legend(loc='upper right')
+    ax.set_xlabel('Branch Length (mm)')
+    ax.set_ylabel('Frequency')
+    subplotCounter += 1
+
+    # graph level distribution per partition
+    valuesList = []
+    bincentersList, yList = [], []
+    for partitionName in partitionNames:
+        nodesInfoList = [nodeInfo for _, nodeInfo in nodeInfoDict.items() if 'partitionName' in nodeInfo and 'depthLevel' in nodeInfo and nodeInfo['partitionName'] == partitionName]
+        values = [nodeInfo['depthLevel'] for nodeInfo in nodesInfoList]
+        valuesList.append(values)
+        weights = (np.zeros_like(values) + 1. / len(values)).tolist()
+        y,binEdges = np.histogram(values, weights=weights)
+        bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+        bincentersList.append(bincenters)
+        yList.append(y)
+    
+    ax = fig.add_subplot(2, 4, 2)
+    # ax.hist(valuesList, label=partitionNames)
+    for ii in range(len(yList)):
+        bincenters, y = bincentersList[ii], yList[ii]
+        ax.plot(bincenters, y, 'o-', label=actualNames[ii])
+    ax.legend(loc='upper right')
+    ax.set_xlabel('Graph Level')
+    ax.set_ylabel('Frequency')
+
+    # number of bifurcations vs graph level per partition
+    attribute1, attribute2 = 'depthLevel', 'type'
+    attribute1ValuesList, attribute2ValuesList = [], []
+    for partitionName in partitionNames:
+        nodesInfoList = [nodeInfo for _, nodeInfo in nodeInfoDict.items() if 'partitionName' in nodeInfo and attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo['partitionName'] == partitionName]
+        attribute1Values = [nodeInfo[attribute1] for nodeInfo in nodesInfoList]
+        attribute2Values = [nodeInfo[attribute2] for nodeInfo in nodesInfoList]
+        attribute1ValuesList.append(attribute1Values)
+        attribute2ValuesList.append(attribute2Values)
+    
+    ax = fig.add_subplot(2, 4, 3)
+    mf.linePlot(attribute1ValuesList, attribute2ValuesList, ax, bins='auto', integerBinning=True, statistic='count', xlabel='Graph Level', ylabel='# of nodes', legendLabelList=actualNames)
+
+    # number of bifurcations vs graph level (left/right)
+    names = [['LCA', 'LACA'], ['RCA', 'RACA']]
+    attribute1, attribute2 = 'depthLevel', 'type'
+    attribute1ValuesList, attribute2ValuesList = [], []
+    for partitionName in names:
+        nodesInfoList = [nodeInfo for _, nodeInfo in nodeInfoDict.items() if 'partitionName' in nodeInfo and attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo['partitionName'] in partitionName]
+        attribute1Values = [nodeInfo[attribute1] for nodeInfo in nodesInfoList]
+        attribute2Values = [nodeInfo[attribute2] for nodeInfo in nodesInfoList]
+        attribute1ValuesList.append(attribute1Values)
+        attribute2ValuesList.append(attribute2Values)
+    
+    ax = fig.add_subplot(2, 4, 4)
+    mf.linePlot(attribute1ValuesList, attribute2ValuesList, ax, bins='auto', integerBinning=True, statistic='count', xlabel='Graph Level', ylabel='# of nodes', legendLabelList=['Left', 'Right'])
+
+    # voxel level distribution per partition
+    valuesList = []
+    bincentersList, yList = [], []
+    for partitionName in partitionNames:
+        nodesInfoList = [nodeInfo for _, nodeInfo in nodeInfoDict.items() if 'partitionName' in nodeInfo and 'depthVoxel' in nodeInfo and nodeInfo['partitionName'] == partitionName]
+        values = [nodeInfo['depthVoxel'] for nodeInfo in nodesInfoList]
+        valuesList.append(values)
+        weights = (np.zeros_like(values) + 1. / len(values)).tolist()
+        y,binEdges = np.histogram(values, weights=weights)
+        bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+        bincentersList.append(bincenters)
+        yList.append(y)
+    
+    ax = fig.add_subplot(2, 4, 5)
+    # ax.hist(valuesList, label=partitionNames)
+    for ii in range(len(yList)):
+        bincenters, y = bincentersList[ii], yList[ii]
+        ax.plot(bincenters, y, 'o-', label=actualNames[ii])
+    ax.legend(loc='upper right')
+    ax.set_xlabel('Voxel Level')
+    ax.set_ylabel('Frequency')
+    
+    # number of bifurcations vs graph level (terminating/bifurcating)
+    attribute1, attribute2 = 'depthLevel', 'type'
+    attribute1ValuesList, attribute2ValuesList = [], []
+    typeList = ['terminating', 'bifurcating']
+    for typeName in typeList:
+        nodesInfoList = [nodeInfo for _, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == typeName]
+        attribute1Values = [nodeInfo[attribute1] for nodeInfo in nodesInfoList]
+        attribute2Values = [nodeInfo[attribute2] for nodeInfo in nodesInfoList]
+        attribute1ValuesList.append(attribute1Values)
+        attribute2ValuesList.append(attribute2Values)
+    
+    ax = fig.add_subplot(2, 4, 6)
+    mf.linePlot(attribute1ValuesList, attribute2ValuesList, ax, bins='auto', integerBinning=True, statistic='count', xlabel='Graph Level', ylabel='# of nodes', legendLabelList=['Terminating', 'Bifurcating'])
+    aa = [node for node, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == 'bifurcating']
+    bb = [node for node, nodeInfo in nodeInfoDict.items() if attribute1 in nodeInfo and attribute2 in nodeInfo and nodeInfo[attribute2] == 'terminating']
+    print(len(aa), len(bb))
+
+    # mean radius distribution per partition
+    valuesList = []
+    attribute = 'meanRadius'
+    dictUsed = segmentInfoDict
+    bincentersList, yList = [], []
+    for partitionName in partitionNames:
+        infoList = [info for _, info in dictUsed.items() if 'partitionName' in info and attribute in info and info['partitionName'] == partitionName]
+        values = [info[attribute]*0.25 for info in infoList] # mm
+        valuesList.append(values)
+        weights = (np.zeros_like(values) + 1. / len(values)).tolist()
+        y,binEdges = np.histogram(values, weights=weights)
+        bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+        bincentersList.append(bincenters)
+        yList.append(y)
+    
+    ax = fig.add_subplot(2, 4, 7)
+    # ax.hist(valuesList, label=partitionNames)
+    for ii in range(len(yList)):
+        bincenters, y = bincentersList[ii], yList[ii]
+        ax.plot(bincenters, y, 'o-', label=actualNames[ii])
+    ax.legend(loc='upper right')
+    ax.set_xlabel('Mean radius (mm)')
+    ax.set_ylabel('Frequency')
+    
+    # mean radius distribution for left/right brain
+    valuesList = []
+    attribute = 'meanRadius'
+    names = [['LCA', 'LACA'], ['RCA', 'RACA']]
+    dictUsed = segmentInfoDict
+    weightsList = []
+    for partitionName in names:
+        infoList = [info for _, info in dictUsed.items() if 'partitionName' in info and attribute in info and info['partitionName'] in partitionName]
+        values = [info[attribute]*0.25 for info in infoList] # mm
+        valuesList.append(values)
+        weightsList.append((np.zeros_like(values) + 1. / len(values)).tolist())
+    
+    ax = fig.add_subplot(2, 4, 8)
+    n, bins, _ = ax.hist(valuesList, weights=weightsList, label=['Left', 'Right'])
+    print(n)
+    ax.legend(loc='upper right')
+    ax.set_xlabel('Mean radius (mm)')
+    ax.set_ylabel('Frequency')
+    
+
+    plt.subplots_adjust(left=0.04, right=0.96, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
