@@ -399,7 +399,6 @@ def calculateProperty(G, segmentList, spacing=0.00025, skipUncategorizedVoxels=F
 
     return nodeInfoDict, segmentInfoDict
 
-
 def generateInfoDict():
     '''
     Generate segmentInfoDict/nodeInfoDict for the entire graph (only categorized voxels).
@@ -732,7 +731,13 @@ def createPlots():
     result = loadBasicFiles(directory=directory)
     G, segmentList, segmentInfoDict, nodeInfoDict = itemgetter('G', 'segmentList', 'segmentInfoDict', 'nodeInfoDict')(result)
     chosenVoxels, partitionInfo, resultADANDict = itemgetter('chosenVoxels', 'partitionInfo', 'resultADANDict')(result)
-
+    
+    fig1(segmentInfoDict, nodeInfoDict, isLastFigure=False)
+    fig2(segmentInfoDict, nodeInfoDict, isLastFigure=False)
+    fig3(segmentInfoDict, nodeInfoDict, isLastFigure=False)
+    fig4(segmentInfoDict, nodeInfoDict, isLastFigure=False)
+    fig5(segmentInfoDict, nodeInfoDict, isLastFigure=False)
+    fig6(segmentInfoDict, nodeInfoDict, isLastFigure=False)
     fig11(segmentInfoDict, nodeInfoDict, isLastFigure=False) # radius vs graph level # GBM_Radius vs Graph level_Compartment (4)
     fig11b(segmentInfoDict, nodeInfoDict, isLastFigure=False) # radius vs graph level # GBM_Radius vs Graph level_Compartment (5)
     fig12(segmentInfoDict, nodeInfoDict, isLastFigure=False) # curvature distribution
@@ -1559,3 +1564,189 @@ def fig18(segmentInfoDict, nodeInfoDict, isLastFigure=True):
     if isLastFigure:
         plt.show()
 
+def plotNetwork(G, infoDict, figIndex=1, isLastFigure=True, hideColorbar=False):
+    """
+    Plot the graph G in a tree structure. The color of the nodes and edges reflects corresponding values.
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        The graph to be plot.
+    infoDict : dict
+        A dictionary containing necessary information for plotting.
+    figIndex : int, optional
+        The figure index.
+    isLastFigure : bool, optional
+        If True, `plt.show()` will be executed.
+    hideColorbar : bool, optional
+        If True, the colorbars will be hidden.
+    """
+    ## Unpack infoDict ##
+    nodeLabelDict, nodeValueList = itemgetter('nodeLabelDict', 'nodeValueList')(infoDict)
+    edgeLabelDict, edgeValueList = itemgetter('edgeLabelDict', 'edgeValueList')(infoDict)
+    figTitle, nodeColorbarLabel, edgeColorbarLabel = itemgetter('figTitle', 'nodeColorbarLabel', 'edgeColorbarLabel')(infoDict)
+
+    ## Calculate extra info ##
+    if 'vmin' not in infoDict or 'vmax' not in infoDict:
+        vmin, vmax = np.amin(nodeValueList), np.amax(nodeValueList)
+    else:
+        vmin, vmax = itemgetter('vmin', 'vmax')(infoDict)
+
+    if 'edge_vmin' not in infoDict or 'edge_vmax' not in infoDict:
+        edge_vmin, edge_vmax = np.amin(edgeValueList), np.amax(edgeValueList)
+    else:
+        edge_vmin, edge_vmax = itemgetter('edge_vmin', 'edge_vmax')(infoDict)
+
+    ## Plot ##
+    fig = plt.figure(figIndex, figsize=(15, 8))
+    plt.subplots_adjust(left=0.06, right=0.94, top=0.94, bottom=0.06, wspace=0.3, hspace=0.3)
+    
+    pos = graphviz_layout(G, prog='dot')
+    ax = fig.add_axes([0.05, 0.05, 0.7, 0.9])
+    ax.set_title(figTitle)
+    ax.set_axis_off()
+    nodes = nx.draw_networkx_nodes(G, pos, node_size=250, node_color=nodeValueList, cmap=plt.cm.get_cmap('jet'), vmin=vmin, vmax=vmax)
+    edges = nx.draw_networkx_edges(G, pos, arrowstyle='-', arrowsize=10, edge_color=edgeValueList, edge_cmap=plt.cm.get_cmap('jet'), edge_vmin=edge_vmin, edge_vmax=edge_vmax, width=2)
+    if len(nodeLabelDict) != 0:
+        nx.draw_networkx_labels(G, pos, labels=nodeLabelDict, font_size=8)
+    
+    if len(edgeLabelDict) != 0:
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edgeLabelDict, font_size=8)
+    
+    # node colorbar
+    if len(nodeColorbarLabel) != 0 and not hideColorbar:
+        # plt.colorbar(nodes, cmap=plt.cm.jet, label=nodeColorbarLabel) 
+        ax1 = fig.add_axes([0.8, 0.05, 0.03, 0.9])
+        norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        cb1 = mpl.colorbar.ColorbarBase(ax1, cmap=plt.cm.get_cmap('jet'), norm=norm, orientation='vertical')
+        cb1.set_label(nodeColorbarLabel, size=10)
+        cb1.ax.tick_params(labelsize=10)
+    # edge colorbar
+    if len(edgeColorbarLabel) != 0 and not hideColorbar:
+        ax2 = fig.add_axes([0.9, 0.05, 0.03, 0.9])
+        norm = mpl.colors.Normalize(vmin=edge_vmin, vmax=edge_vmax)
+        cb2 = mpl.colorbar.ColorbarBase(ax2, cmap=plt.cm.get_cmap('jet'), norm=norm, orientation='vertical')
+        cb2.set_label(edgeColorbarLabel, size=10)
+        cb2.ax.tick_params(labelsize=10)
+    
+    if isLastFigure:
+        plt.show()
+
+def graphPlotPerPartition():
+    """
+    An example using the function `plotNetwork`.
+    """
+    start_time = timeit.default_timer()
+    spacing = 0.00040 # meter/voxel
+    # Load files #
+    directory = os.path.abspath(os.path.dirname(__file__))
+    result = loadBasicFiles(directory=directory)
+    G, segmentList, segmentInfoDict, nodeInfoDict = itemgetter('G', 'segmentList', 'segmentInfoDict', 'nodeInfoDict')(result)
+    chosenVoxels, partitionInfo, resultADANDict = itemgetter('chosenVoxels', 'partitionInfo', 'resultADANDict')(result)
+
+    subplotCounter = 1
+    datasetName = 'GBM'
+    for partitionName in partitionInfo.keys():
+        entryPoints = chosenVoxels[partitionName]['initialVoxels']
+        boundaryPoints = chosenVoxels[partitionName]['boundaryVoxels']
+        allVoxels = partitionInfo[partitionName]['visitedVoxels']
+        segmentIndexList = partitionInfo[partitionName]['segmentIndexList']
+    
+        GSub = G.subgraph(allVoxels)
+        DGSub = reduceGraph(GSub, segmentList, segmentIndexList)
+        nodeLabelDict = {}
+        nodeValueList = [nodeInfoDict[node]['cubicLawResult'] if 'cubicLawResult' in nodeInfoDict[node] else 0 for node in DGSub.nodes()]
+        edgeLabelDict = {}
+        edgeValueList = [segmentInfoDict[DGSub[edge[0]][edge[1]]['segmentIndex']]['meanRadius'] * spacing * 1000 for edge in DGSub.edges()] # mm
+        infoDict = {'nodeLabelDict': nodeLabelDict, 'nodeValueList': nodeValueList, 'nodeColorbarLabel': 'Murray\'s law ratio',
+                    'edgeLabelDict': edgeLabelDict, 'edgeValueList': edgeValueList, 'edgeColorbarLabel': 'Radius (mm)',
+                    'figTitle': '{}, {}'.format(partitionName, datasetName)}
+        
+        graphPlot(DGSub, infoDict, figIndex=subplotCounter)
+        subplotCounter += 1
+    
+    elapsed = timeit.default_timer() - start_time
+    print('Elapsed: {} sec'.format(elapsed))
+    plt.show()
+
+def graphPlotPerPartition2():
+    """
+    An example using the function `plotNetwork`. Show Murray's law ratio and radius for all five compartments that share one colorbar
+    """
+    start_time = timeit.default_timer()
+    directory = os.path.abspath(os.path.dirname(__file__))
+    datasetName = 'GBM'
+    ## Load ##
+    result = loadBasicFiles()
+    G, segmentList, segmentInfoDict, nodeInfoDict = itemgetter('G', 'segmentList', 'segmentInfoDict', 'nodeInfoDict')(result)
+    chosenVoxels, partitionInfo, resultADANDict = itemgetter('chosenVoxels', 'partitionInfo', 'resultADANDict')(result)
+
+    subplotCounter = 1
+    infoDictList = []
+    nodeValueListList, edgeValueListList = [], []
+    allVoxelsList, DGSubList = [], []
+    partitionNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
+    actualNames = ['LMCA', 'RMCA', 'ACA', 'LPCA', 'RPCA']
+    for partitionName, actualName in zip(partitionNames, actualNames):
+        entryPoints = chosenVoxels[partitionName]['initialVoxels']
+        boundaryPoints = chosenVoxels[partitionName]['boundaryVoxels']
+        allVoxels = partitionInfo[partitionName]['visitedVoxels']
+        segmentIndexList = partitionInfo[partitionName]['segmentIndexList']
+        allVoxelsList += allVoxels
+    
+        GSub = G.subgraph(allVoxels)
+        DGSub = reduceGraph(GSub, segmentList, segmentIndexList)
+        DGSubList.append(DGSub)
+        nodeLabelDict = {}
+        nodeValueList = [nodeInfoDict[node]['cubicLawResult'] if 'cubicLawResult' in nodeInfoDict[node] else 0 for node in DGSub.nodes()]
+        edgeLabelDict = {}
+        edgeValueList = [segmentInfoDict[DGSub[edge[0]][edge[1]]['segmentIndex']]['meanRadius'] * 0.4 for edge in DGSub.edges()] # mm
+        infoDict = {'nodeLabelDict': nodeLabelDict, 'nodeValueList': nodeValueList, 'nodeColorbarLabel': 'Murray\'s law ratio',
+                    'edgeLabelDict': edgeLabelDict, 'edgeValueList': edgeValueList, 'edgeColorbarLabel': 'Radius (mm)',
+                    'figTitle': '{}, {}'.format(actualName, datasetName)}
+        
+        infoDictList.append(infoDict)
+        nodeValueListList += nodeValueList
+        edgeValueListList += edgeValueList
+    
+    vmin, vmax = np.amin(nodeValueListList), np.amax(nodeValueListList)
+    edge_vmin, edge_vmax = np.amin(edgeValueListList), np.amax(edgeValueListList)
+    
+    for infoDict in infoDictList:
+        tempDict = {'vmin': vmin, 'vmax': vmax, 'edge_vmin': edge_vmin, 'edge_vmax': edge_vmax}
+        infoDict.update(tempDict)
+
+    hideColorbarList = [True, True, True, True, True]
+    for ii in range(len(partitionNames)):
+        infoDict = infoDictList[ii]
+        DGSub = DGSubList[ii]
+        hideColorbar = hideColorbarList[ii]
+        plotNetwork(DGSub, infoDict, hideColorbar=hideColorbar, figIndex=ii+1)
+    
+    # Standalone color bar
+    fig = plt.figure(10, figsize=(12, 8))
+    plt.subplots_adjust(left=0.15, right=0.85, top=0.94, bottom=0.06, wspace=0.3, hspace=0.9)
+
+    ax1 = fig.add_axes([0.15, 0.9, 0.7, 0.04])
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+    cb1 = mpl.colorbar.ColorbarBase(ax1, cmap=mpl.cm.jet, norm=norm, orientation='horizontal')
+    cb1.set_label('Murray\'s law ratio', size=18)
+    cb1.ax.tick_params(labelsize=18)
+
+    ax2 = fig.add_axes([0.15, 0.75, 0.7, 0.04])
+    norm = mpl.colors.Normalize(vmin=edge_vmin, vmax=edge_vmax)
+    cb2 = mpl.colorbar.ColorbarBase(ax2, cmap=mpl.cm.jet, norm=norm, orientation='horizontal')
+    cb2.set_label('Mean branch radius (mm)', size=18)
+    cb2.ax.tick_params(labelsize=18)
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    generateInfoDict()
+    calculateCurvature()
+    statisticsPerPartition()
+    statisticsPerPartition2()
+    createPlots()
+    graphPlotPerPartition()
+    graphPlotPerPartition2()
