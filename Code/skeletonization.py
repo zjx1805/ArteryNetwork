@@ -536,6 +536,70 @@ def processSegments(segmentList, shape):
 
     return G, segmentList, errorSegments
 
+def getSegmentList(G, nodeInfoDict):
+    """
+    Generate segmentList from graph and nodeInfoDict.
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        The graph representation of the network.
+    nodeInfoDict : dict
+        A dictionary containing the information about nodes.
+    
+    Returns
+    -------
+    segmentList : list
+        A list of segments in which each segment is a simple branch.
+    """
+    startNodeIDList = [nodeID for nodeID in nodeInfoDict.keys() if nodeInfoDict[nodeID]['parentNodeID'] == -1]
+    print('startNodeIDList = {}'.format(startNodeIDList))
+    segmentList = []
+    for startNodeID in startNodeIDList:
+        segmentList = getSegmentListDetail(G, nodeInfoDict, segmentList, startNodeID)
+    
+    print('There are {} segments in segmentList'.format(len(segmentList)))
+    print(segmentList)
+    return segmentList
+
+def getSegmentListDetail(G, nodeInfoDict, segmentList, startNodeID):
+    """
+    Implementation of `getSegmentList`. Use DFS to traverse all the segments.
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        The graph representation of the network.
+    nodeInfoDict : dict
+        A dictionary containing the information about nodes.
+    segmentList : list
+        A list of segments in which each segment is a simple branch.
+    startNodeID : int
+        The index of the start point of a segment.
+    
+    Returns
+    -------
+    segmentList : list
+        A list of segments in which each segment is a simple branch.
+    """
+    neighborNodeIDList = [nodeID for nodeID in list(G[startNodeID].keys()) if 'visited' not in G[startNodeID][nodeID]] # use adjacency dict to find neighbors
+    newSegmentList = []
+    for neighborNodeID in neighborNodeIDList:
+        newSegment = [startNodeID, neighborNodeID]
+        G[startNodeID][neighborNodeID]['visited'] = True
+        currentNodeID = neighborNodeID
+        while G.degree(currentNodeID) == 2:
+            newNodeID = [nodeID for nodeID in G[currentNodeID].keys() if 'visited' not in G[currentNodeID][nodeID]][0]
+            G[currentNodeID][newNodeID]['visited'] = True
+            newSegment.append(newNodeID)
+            currentNodeID = newNodeID
+        
+        newSegmentList.append(newSegment)
+        segmentList.append(newSegment)
+        segmentList = getSegmentListDetail(G, nodeInfoDict, segmentList, currentNodeID)
+    
+    return segmentList
+
 def sublist(ls1, ls2):
     '''
     >>> sublist([], [1,2,3])
