@@ -99,7 +99,7 @@ We partition the artery network into several compartments based on physical loca
 
 ### Morporlogical properties
 
-We calculate the various morphological properties listed in this [paper](https://www.ncbi.nlm.nih.gov/pubmed/23727319). This is done in `pythonFileName.py`.
+We calculate the various morphological properties listed in this [paper](https://www.ncbi.nlm.nih.gov/pubmed/23727319). This is done in `graphRelated.py`.
 
 ## Blood flow simulation
 
@@ -175,6 +175,23 @@ Most of the functionalities in the pipeline are modularized and separated into d
 **Produces:**  
 * nodeInfoDict.pkl: A dictionary containing information about all bifurcations.  
 * segmentInfoDict.pkl: A dictionary containing information about all the segments in `segmentListCleaned.npz`.
+
+----
+
+**Filename:** `fluidSimulation.py`  
+**Description:** A class of functions used to perform blood flow simulations and plot results.  
+**Requires:**  
+* chosenVoxelsForPartition.pkl: Contains the `initialVoxels` and `boundaryVoxels` for each compartment selected by the user.
+* partitionInfo.pkl: Contains information about nodes (`visitedVoxels`) and segments (`segmentIndexList`) within each compartment.
+* graphRepresentationCleanedWithAdvancedInfo.graphml: The same graph as `graphRepresentationCleanedWithEdgeInfo` and has additional depth information.
+* segmentListCleaned.npz: A list containing all the segments (vessel branches) after manual correction.  
+* nodeInfoDict.pkl: A dictionary containing information about all bifurcations.  
+* segmentInfoDict.pkl: A dictionary containing information about all the segments in `segmentListCleaned.npz`.
+* nodeInfoDict.pkl: A dictionary containing information about all bifurcations.  
+* segmentInfoDict.pkl: A dictionary containing information about all the segments in `segmentListCleaned.npz`.
+
+**Produces:**  
+* Various results depending on individual functions.
 
 ----
 
