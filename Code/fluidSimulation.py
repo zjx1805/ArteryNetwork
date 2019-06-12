@@ -44,6 +44,13 @@ class FluidNetwork(object):
     3. Set the terminating pressures by `setTerminatingPressure`.
     4. Generate H-W equations for each edge and flow conservation equations for each node by `setupFluidEquations`.
     5. Solve the equations by optimization and use `computerNetworkDetail` as objective function.
+
+    The fluid simulation tries to solve the network by finding a set of pressures for each node and a set of flow rates 
+    for each edges such that H-W equations and flow conservation equations are satisfied with the given set of 
+    terminating pressures. For a binary tree structure without merges, a solution is guaranteed to exist no matter what 
+    the terminating pressures look like. However, for the network with merges (e.g., the GBM network with CoW), it is 
+    possible that a solution does not exist for the given set of terminating pressures. Therefore, for these cases, we 
+    need to check the optimization result and check whether the error in each equations are within a acceptable range.
     """
     def __init__(self):
         self.directory = os.path.abspath(os.path.dirname(__file__))
@@ -435,6 +442,9 @@ class FluidNetwork(object):
         self.edgeInfoDict = edgeInfoDict
     
     def showFlowInfo(self):
+        """
+        Print out flow rates for selected edges and pressure for selected nodes.
+        """
         G = self.G
         edgeList = self.edgeList
         nodeInfoDict = self.nodeInfoDict
@@ -468,7 +478,21 @@ class FluidNetwork(object):
 
     def getFlowInfoFromDeltaPressure(self, edgeIndex, deltaPressure):
         """
-        Calculate the required flow/velocity in order to achieve the given pressure drop for the specific edge
+        Calculate the required flow/velocity in order to achieve the given pressure drop for the specific edge.
+
+        Parameters
+        ----------
+        edgeIndex : int
+            The index of the edge.
+        deltaPressure : float
+            The desired pressure drop with a unit of Pascal.
+        
+        Returns
+        -------
+        flow : float
+            The required flow rate to achieve the desired pressure drop with a unit of cm^3/s.
+        velocity : float
+            The velocity in that edge corresponding to the required flow rate.
         """
         edgeInfoDict = self.edgeInfoDict
         spacing = self.spacing
@@ -482,7 +506,19 @@ class FluidNetwork(object):
     
     def getDeltaPressureFromFlow(self, edgeIndex, flow):
         """
-        Calculate the required pressure drop in order to achieve the given flow for the specific edge
+        Calculate the required pressure drop in order to achieve the given flow for the specific edge.
+
+        Parameters
+        ----------
+        edgeIndex : int
+            The index of the edge.
+        flow : float
+            The desired flow rate of the edge with a unit of cm^3/s.
+        
+        Returns
+        -------
+        deltaPressure : float
+            The required pressure drop in the edge to achieve the desired flow rate with a unit of Pascal.
         """
         edgeInfoDict = self.edgeInfoDict
         spacing = self.spacing
@@ -496,8 +532,8 @@ class FluidNetwork(object):
     def createGroundTruth(self, seed=None, option=1):
         """
         Manually set the velocity and pressure for all edges/nodes in order to check whether the solver is correct.
-        Option 1: each child branch randomly takes ~1/N (with some random fluctuation) of the parent flow
-        Option 2: flow is split proportional to the cross sectional area of the child branches
+        Option 1: each child branch randomly takes ~1/N (with some random fluctuation) of the parent flow.
+        Option 2: flow is split proportional to the cross sectional area of the child branches.
         """
         directory = self.directory
         G = self.G
@@ -566,9 +602,6 @@ class FluidNetwork(object):
                         
                         isEdge1StraightPipe, isEdge2StraightPipe = False, False
                     
-                    # if nodeAtNextDepth == 10:
-                    #     print(parentNodes, loc1, loc2)
-                    
                     edgeIndex1, edgeIndex2 = parentEdgeIndexList[loc1], parentEdgeIndexList[loc2]
                     parentNode1, parentNode2 = parentNodes[loc1], parentNodes[loc2]
                     parentPressure1, parentPressure2 = pressureAtParentNodes[loc1], pressureAtParentNodes[loc2]
@@ -630,10 +663,6 @@ class FluidNetwork(object):
                         print('Node {}: the flow ({}) in other edge is larger than provided ({})'.format(nodeAtNextDepth, flow2, parentFlow2))
                         print('edgeIndex1={}, edgeIndex2={}, flow1={}, flow2={}'.format(edgeIndex1, edgeIndex2, flow1, flow2))
                         print(nodeInfoDict[1]['simulationData']['pressure']/13560/9.8*1000, nodeInfoDict[3]['simulationData']['pressure']/13560/9.8*1000, nodeInfoDict[2]['simulationData']['pressure']/13560/9.8*1000)
-                    # print('Edge {} flow={}'.format(edgeIndex, flow))
-                    # print('Node {} flow={}'.format(nodeAtNextDepth, flowCounter))
-
-                    # print('Edge {} and {} set by node {}'.format(edgeIndex1, edgeIndex2, nodeAtNextDepth))
             
             ## Now deal with remaining nodes
             nodesAtCurrentDepth = [node for node in G.nodes() if nodeInfoDict[node]['depth'] == currentDepth]
@@ -753,7 +782,12 @@ class FluidNetwork(object):
     
     def getVelocityPressure(self):
         """
-        Extract velocity and pressure from edgeInfoDict and nodeInfoDict
+        Extract velocity and pressure from edgeInfoDict and nodeInfoDict.
+
+        Returns
+        -------
+        velocityPressure : list
+            A list of velocities and pressures in the form of [v0, v1,..., vN, p0, p1,..., pN].
         """
         nodeInfoDict = self.nodeInfoDict
         edgeInfoDict = self.edgeInfoDict
@@ -777,7 +811,11 @@ class FluidNetwork(object):
     
     def getVolumePerPartition(self):
         """
-        Get the total volume of each compartment 
+        Calculate the total volume of each compartment.
+
+        Returns
+        volumePerPartition : dict
+            A dictionary with compartments names as keys and volumes (with a unit of mm^3) as corresponding values.
         """
         partitionInfo = {'LMCA': {'startNodes': [4], 'boundaryNodes': [10]}, 'RMCA': {'startNodes': [5], 'boundaryNodes': [10]},
                          'LPCA': {'startNodes': [6], 'boundaryNodes': []}, 'RPCA': {'startNodes': [7], 'boundaryNodes': []}, 'ACA': {'startNodes': [10], 'boundaryNodes': []}}
@@ -803,7 +841,7 @@ class FluidNetwork(object):
 
     def showTerminatingPressureAndPathLength(self):
         """
-        Check terminating pressure vs path length relationship
+        Check terminating pressure vs path length relationship.
         """
         directory = self.directory
         G = self.G
@@ -833,7 +871,21 @@ class FluidNetwork(object):
     def setupFluidEquations(self, boundaryCondition=None):
         """
         Programmatically stores the info to generate the conservation equations used for fluid simulation (each dict represents an equation). 
-        Uses result from ADAN model to set terminating pressure
+        
+        There are two kinds of equations: H-W equation for each edge and flow conservation equation for each node and optionally boundary 
+        conditions. For the H-W equation, the 
+        information is stored in a dictionay as:  
+        {'type': 'pressure', 'radius': radius, 'length': length, 'velocityIndex': velocityIndex, 'c': c, 'k': k, 'edgeIndex': edgeIndex}  
+
+        For the flow conservation equation, the information is stored as:  
+        {'type': 'flow', 'velocityInIndexList': velocityInIndexList, 'radiusInList': radiusInList, 
+         'velocityOutIndexList': velocityOutIndexList, 'radiusOutList': radiusOutList, 'coord': nodeInfoDict[node]['coord'], 
+         'nodeIndex': nodeInfoDict[node]['nodeIndex'], 'neighborsInEdgeIndex': neighborsIndexIn, 'neighborsOutEdgeIndex': neighborsIndexOut}
+        
+        For the boundary conditions (inlet or outlet velocity), the information is stored as:  
+        {'type': 'boundary', 'velocityIndex': velocityIndex, 'velocityIn': velocityIn}
+        
+        All of the units are SI units. The dictonaries that hold these equations are then stored in the `eqnInfoDictList`.
         """
         directory = self.directory
         G = self.G
@@ -916,7 +968,8 @@ class FluidNetwork(object):
     def setupFluidEquationsMatLab(self, boundaryCondition=None):
         """
         Programmatically stores the info to generate the conservation equations used for fluid simulation (each dict represents an equation). 
-        Uses result from ADAN model to set terminating pressure
+        
+        Note that the Python-MatLab bridge only accepts generic python types, and thus all numpy types need to be converted.
         """
         directory = self.directory
         G = self.G
@@ -997,7 +1050,7 @@ class FluidNetwork(object):
     
     def setupEquationsForDistributeFlow(self):
         """
-        Setup equations for distributeFlowTest().
+        Setup equations for distributeFlowTest(). This function is unfinished. TODO
 
         The resulting file is distributeFlowEqnDict and it contains three fields:
         -- 'connectInfoDictList' --
@@ -1049,7 +1102,14 @@ class FluidNetwork(object):
 
     def validateFluidEquations(self, velocityPressure=None, boundaryCondition=None):
         """
-        Validate the correctness of the equations generated by setupFluidEquations()
+        Validate if all of the equations generated by `setupFluidEquations` are satisfied. This function will output errors for 
+        each of the equations and corresponding details. Note that the error for each equations is amplified in the same way as 
+        in the function `computeNetworkDetail`.
+
+        Parameters
+        ----------
+        velocityPressure : list
+            A list of velocities and pressures in the form of [v0, v1,..., vN, p0, p1,..., pN].
         """
         directory = self.directory
         G = self.G
@@ -1135,7 +1195,19 @@ class FluidNetwork(object):
     
     def BFS(self, startNodes, boundaryNodes):
         """
-        Start from given node(s), visit other nodes at larger depth in a BFS fashion
+        Start from given node(s), visit other nodes at larger depth in a BFS fashion.
+
+        Parameters
+        ----------
+        startNodes : list
+            A list of nodes to start with.
+        boundaryNodes : list
+            A list of nodes used as the boundary.
+        
+        Returns
+        -------
+        resultDict : dict
+            A dictionary containing the indices of visited edges and nodes.
         """
         G = self.G
         nodeInfoDict = self.nodeInfoDict
@@ -1160,7 +1232,8 @@ class FluidNetwork(object):
 
     def calculateVariableBounds(self):
         """
-        Calculate the pressure bound for each node and velocity bound for each branch
+        Calculate the pressure bound for each node and velocity bound for each branch (because pressure at child nodes
+        cannot be higher than that of the parent node).
         """
         G = self.G
         nodeInfoDict = self.nodeInfoDict
@@ -1289,6 +1362,7 @@ class FluidNetwork(object):
     
     def printTerminatingPressurePerPartition(self, partitionInfo=None):
         """
+        Print out terminating pressures in each compartment.
         """
         G = self.G
         edgeList = self.edgeList
@@ -1442,6 +1516,7 @@ class FluidNetwork(object):
     
     def updateNetworkWithSimulationResult(self, velocityPressure):
         """
+        Update the flow rate and pressure in `edgeInfoDict` and `nodeInfoDict` with the given `velocityPressure`.
         """
         G = self.G
         edgeIndexList = self.edgeIndexList
@@ -1469,6 +1544,7 @@ class FluidNetwork(object):
     
     def loadFluidResult(self, loadFileName, return_ResultDict=False):
         """
+        Load the saved fluid simulation result.
         For use with GBMTest()
         """
         directory = self.directory
@@ -1507,6 +1583,7 @@ class FluidNetwork(object):
     
     def loadFluidResult2(self, loadFileName):
         """
+        Load the saved fluid simulation result.
         For use with computeNetworkTest()
         """
         directory = self.directory
@@ -1541,6 +1618,10 @@ class FluidNetwork(object):
         return nodeInfoDictPerturbed, edgeInfoDictPerturbed, velocityPressurePerturbed
 
     def GBMTest(self, saveResult=False):
+        """
+        Create a GBM network with radius following the BraVa distribution, generate a ground truth solution, then perturb the network 
+        in a particular way while keeping the terminating pressures unchanged, then try to solve the network.
+        """
         start_time = timeit.default_timer()
         functionName = inspect.currentframe().f_code.co_name
         resultDict = {'referenceYear': {}, 'perturbedYear': {}}
@@ -1711,7 +1792,7 @@ class FluidNetwork(object):
     
     def GBMTest2(self, perturbTerminatingPressureOption=1, saveResult=False):
         """
-        Perturb the terminating pressure in a specific way
+        Perturb the terminating pressure in a specific way and check if the new system could be solved.
         """
         start_time = timeit.default_timer()
         functionName = inspect.currentframe().f_code.co_name
@@ -1761,13 +1842,6 @@ class FluidNetwork(object):
         # self.showFlowInfo()
         # computeNetworkDetailExtraInfo = None
 
-        # Load previous optimization result #
-        # loadFileName = 'fluidSimulationResult3(referenceYear=BraVa, perturbedYear=2013).pkl'
-        # nodeInfoDictPerturbed, edgeInfoDictPerturbed, velocityPressurePerturbed = self.loadFluidResult(loadFileName)
-        # velocityPressureInit = velocityPressurePerturbed
-        # self.nodeInfoDict = nodeInfoDictPerturbed
-        # self.edgeInfoDict = edgeInfoDictPerturbed
-        # computeNetworkDetailExtraInfo = {'excludedEdgeIndex': [0,1,2,3,4,5,6,7,10,11,12,13]}
         computeNetworkDetailExtraInfo = None
 
         numOfNodes = len([node for node in nodeInfoDict if 'argsIndex' in nodeInfoDict[node]])
@@ -2634,7 +2708,7 @@ class FluidNetwork(object):
     
     def argsBoundTest(self):
         """
-        Check whether the solve can correctly solve a system by creating a ground truth model first and comparing the simulation result with it
+        Test the function `calculateVariableBounds`
         """
         start_time = timeit.default_timer()
         functionName = inspect.currentframe().f_code.co_name
@@ -2683,7 +2757,7 @@ class FluidNetwork(object):
         """
         Find a way (by optimization) to distribute the flow in the entire network such that the resulting terminating
         pressures match the desired values (does not need to be exactly the same but just to minimize the difference
-        between them)
+        between them). Unfinished!
         """
         start_time = timeit.default_timer()
         functionName = inspect.currentframe().f_code.co_name
@@ -2730,8 +2804,20 @@ class FluidNetwork(object):
     
     def plotNetwork(self, infoDict: dict, figIndex: int=1, isLastFigure: bool=True, hideColorbar: bool=False):
         """
-        Plot the graph G in a tree structure. The color of the nodes and edges
-        reflects corresponding values
+        Plot the graph G in a tree structure. The color of the nodes and edges reflects corresponding values.
+    
+        Parameters
+        ----------
+        G : NetworkX graph
+            The graph to be plot.
+        infoDict : dict
+            A dictionary containing necessary information for plotting.
+        figIndex : int, optional
+            The figure index.
+        isLastFigure : bool, optional
+            If True, `plt.show()` will be executed.
+        hideColorbar : bool, optional
+            If True, the colorbars will be hidden.
         """
         G = self.G
     
@@ -2792,7 +2878,7 @@ class FluidNetwork(object):
     
     def compareNetworkPropertyTest(self):
         """
-        Compare the edge properties before and after the change
+        Compare the edge properties before and after perturbing the network.
         GBM_Radius ratio vs Graph level_Compartment(5)_Single row
         GBM_Radius ratio vs Graph level_Graph plot
         """
@@ -2903,6 +2989,11 @@ class FluidNetwork(object):
         Update the edge radius with the supplied list.
 
         The i-th element in edgeRadiusList is the radius (in voxel) of the i-th edge.
+
+        Parameters
+        ----------
+        edgeRadiusList : list
+            A list of new edge radius.
         """
         edgeInfoDict = self.edgeInfoDict
         for edgeIndex, radius in enumerate(edgeRadiusList):
@@ -2916,6 +3007,11 @@ class FluidNetwork(object):
         Apply the flow from edgeFlowList to the corresponding edges and recalculates all the pressures.
 
         The i-th element in edgeFlowList is the flow (in m^3/s) of the i-th edge.
+
+        Parameters
+        ----------
+        edgeFlowList : list
+            A list of flow rates to be applied to each edges.
         """
         nodeInfoDict = self.nodeInfoDict
         edgeInfoDict = self.edgeInfoDict
@@ -3739,6 +3835,7 @@ class FluidNetwork(object):
 
     def showResult_GBMTest5(self, numOfTimeSteps=5):
         """
+        Plot the result obtained from `GBMTest5`.
         """
         start_time = timeit.default_timer()
         functionName = inspect.currentframe().f_code.co_name
@@ -3826,7 +3923,7 @@ class FluidNetwork(object):
     
     def showResult2_GBMTest5(self, numOfTimeSteps=5):
         """
-        Show graph plot of pressures and flows between two time steps and share one legend
+        Show graph plot of pressures and flows from `GBMTest5` between two time steps and share one legend.
         """
         start_time = timeit.default_timer()
         functionName = inspect.currentframe().f_code.co_name
@@ -3905,7 +4002,7 @@ class FluidNetwork(object):
     
     def graphPlotStandaloneLegend(self, figIndex=1, isLastFigure=True, orientation='horizontal', extraInfo=None):
         """
-        Standalone legend for the graph plot
+        Standalone legend for the graph plot.
         """
         fig = plt.figure(figIndex, figsize=(12, 8))
         plt.subplots_adjust(left=0.15, right=0.85, top=0.94, bottom=0.06, wspace=0.3, hspace=0.9)
@@ -3934,7 +4031,7 @@ class FluidNetwork(object):
 
     def plotTerminatingPressures(self, figIndex=1, isLastFigure=True):
         """
-        Plot distribution of terminating pressures per compartment
+        Plot distribution of terminating pressures per compartment.
         """
         G = self.G
         nodeInfoDict = self.nodeInfoDict
@@ -4053,35 +4150,6 @@ class FluidNetwork(object):
         # Terminating pressures distribution per time step_Split flow with radius_All CoW branches fixed_Compartment(5)
         # Terminating pressures distribution per time step_Split flow with radius_LICA RICA VA fixed_Compartment(5)
         elif option == 2:
-            # fig = plt.figure(figIndex, figsize=(9, 8))
-            # plt.subplots_adjust(left=0.06, right=0.94, top=0.94, bottom=0.06, wspace=0.3, hspace=0.5)
-            
-            # subplotIndex = 1
-            # G = self.G
-            # nodeInfoDict = self.nodeInfoDict
-            # edgeInfoDict = self.edgeInfoDict
-            # nbins = 20
-            # colorList = ['r', 'g', 'b', 'y', 'c', 'm']
-            # for currentTimeStep in range(numOfTimeSteps):
-            #     ax = fig.add_subplot(5,1,subplotIndex)
-            #     data = []
-            #     for partitionName, info in partitionInfo.items():
-            #         startNodes, boundaryNodes = itemgetter('startNodes', 'boundaryNodes')(info)
-            #         resultDict = self.BFS(startNodes, boundaryNodes)
-            #         visitedNodes, visitedEdges = itemgetter('visitedNodes', 'visitedEdges')(resultDict)
-            #         terminatingNodesInThisPartition = [node for node in visitedNodes if G.degree(node) == 1 and nodeInfoDict[node]['depth'] != 0]
-            #         terminatingPressuresInThisPartition = [terminatingPressuresTimeStepArray[terminatingNodes.index(node), currentTimeStep] for node in terminatingNodesInThisPartition]
-            #         data.append(terminatingPressuresInThisPartition)
-
-            #     # Hist plot
-            #     ax.hist(data, nbins, histtype='bar', label=list(partitionInfo.keys()))
-            #     ax.legend(prop={'size': 8})
-            #     if currentTimeStep == numOfTimeSteps-1:
-            #         ax.set_xlabel('Terminating pressure (mmHg)')
-            #     ax.set_ylabel('Count')
-            #     ax.set_title('Time step = {}'.format(subplotIndex - 1))
-            #     subplotIndex += 1
-            
             # Terminating pressure vs Time step vs Compartment(5)_3D Histogram_Same flow_All CoW branches fixed
             # Terminating pressure vs Time step vs Compartment(5)_3D Histogram_Same flow_LICA RICA VA fixed
             # Terminating pressure vs Time step vs Compartment(5)_3D Histogram_Split flow with radius_All CoW branches fixed
@@ -4181,6 +4249,7 @@ class FluidNetwork(object):
     
     def plotFlow(self, flowTimeStepArray, option=1, figIndex=1, isLastFigure=True):
         """
+        Plot the flow to each of the compartments.
         """
         partitionInfo = {'LMCA': {'startNodes': [4], 'boundaryNodes': [10]}, 'RMCA': {'startNodes': [5], 'boundaryNodes': [10]}, 'ACA': {'startNodes': [10], 'boundaryNodes': []},
                          'LPCA': {'startNodes': [6], 'boundaryNodes': []}, 'RPCA': {'startNodes': [7], 'boundaryNodes': []}}
@@ -4233,6 +4302,8 @@ class FluidNetwork(object):
     
     def plotRootPressuresCompartment(self, nodePressuresTimeStepArray, option=1, figIndex=1, isLastFigure=True):
         """
+        Plot the root pressures of each compartment over time.
+
         Root pressure per compartment_Split flow with radius_All CoW branches fixed
         Root pressure per compartment_Split flow with radius_LICA RICA VA fixed
         Root pressure per compartment_Same flow_LICA RICA VA fixed
@@ -4264,6 +4335,7 @@ class FluidNetwork(object):
     
     def plotTerminatingPressureVSPathLength(self, terminatingNodes, terminatingPressuresTimeStepArray, option=1, figIndex=1, isLastFigure=True):
         """
+        Scatter plot of terminating pressure vs path length.
         """
         G = self.G
         edgeList = self.edgeList
@@ -4561,7 +4633,7 @@ class FluidNetwork(object):
 
 def computeNetworkDetail(args, eqnInfoDictList, method='HW', errorNorm=0, extraInfo=None):
     """
-    Given a network, the inlet pressure and all the terminating pressure, find the velocity/pressure of the remaining branches/nodes
+    Given a network, the inlet pressure and all the terminating pressure, find the velocity/pressure of the remaining branches/nodes.
     """
     rouBlood = 1050 # kg/m^3
     rouMercury = 13560 # kg/m^3
