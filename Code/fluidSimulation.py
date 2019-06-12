@@ -51,6 +51,8 @@ class FluidNetwork(object):
     the terminating pressures look like. However, for the network with merges (e.g., the GBM network with CoW), it is 
     possible that a solution does not exist for the given set of terminating pressures. Therefore, for these cases, we 
     need to check the optimization result and check whether the error in each equations are within a acceptable range.
+
+    Note that not all the functions in this class should be used. Some are just for experimental purposes!
     """
     def __init__(self):
         self.directory = os.path.abspath(os.path.dirname(__file__))
