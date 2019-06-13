@@ -205,3 +205,22 @@ Most of the functionalities in the pipeline are modularized and separated into d
 * a
 * b
 
+# Usage
+
+This section explains how to use the pipeline:
+
+1. Register multiple sets of images if any (optional).
+
+2. Use 3D Slicer to perform bias field correction (optional), denoising (optional), skull stripping and vesselness filtering.
+
+3. Use `variationalRegionGrowing.py` to further refine the vessel volume.
+
+4. Use `skeletonization.py` to obtain the centerlines and radii.
+
+5. Use `manualCorrectionGUI.py` to correct any erroneous connections.
+
+6. Use `partitionCompartment.py` to partition the entire network into compartments.
+
+7. Use `graphRelated.py` to perform graph analysis on the obtained vessel network.
+
+8. Use `fluidSimulation.py` to perform blood flow simulation.
