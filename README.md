@@ -195,16 +195,6 @@ Most of the functionalities in the pipeline are modularized and separated into d
 
 ----
 
-**Filename:** `xx.py`  
-**Description:** aa  
-**Requires:**  
-* a
-* b
-
-**Produces:**  
-* a
-* b
-
 # Usage
 
 This section explains how to use the pipeline:
@@ -224,3 +214,17 @@ This section explains how to use the pipeline:
 7. Use `graphRelated.py` to perform graph analysis on the obtained vessel network.
 
 8. Use `fluidSimulation.py` to perform blood flow simulation.
+
+# Misc
+
+## Templates
+
+**Filename:** `xx.py`  
+**Description:** aa  
+**Requires:**  
+* a
+* b
+
+**Produces:**  
+* a
+* b
