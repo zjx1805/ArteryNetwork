@@ -12,7 +12,7 @@ If you find the code useful for your research, please cite our paper:
 
 This repository is temporarily made public for the sole purpose of code display for my PhD application (2020 Fall). It will go back to private after mid December unless the paper gets accepted by then. Until then the author does **not** consent to any kind of use of the code in this repository.
 
-
+# Introduction
 
 The entire processing pipeline described in our paper is implemented here and is divided into modules. This document will demonstrate, step by step, how to use the pipeline. Note that out of the 4 datasets used (ADAN/BraVa/GBM/Speck), two of them are publicly available (ADAN from [here](http://hemolab.lncc.br/adan-web/) and BraVa from [here](http://cng.gmu.edu/brava/home.php)), the Speck dataset can be obtained by contacting the [author](https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.27033), the GBM dataset is for private use only and thus cannot be shared (because it contains sensitive patient data).
 
