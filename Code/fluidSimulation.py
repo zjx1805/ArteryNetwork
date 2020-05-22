@@ -3914,7 +3914,7 @@ class FluidNetwork(object):
             terminatingPressuresTimeStepArray[:, currentTimeStep] = terminatingPressures
 
         # Flow proportions_GBMTest5
-        self.plotFlowProportion(flowTimeStepArray, figIndex=21, isLastFigure=False)
+        # self.plotFlowProportion(flowTimeStepArray, figIndex=21, isLastFigure=False)
         # Mean terminating pressure vs Time step_GBMTest5 and Terminating pressure vs Time step_Compartment_GBMTest5
         self.plotTerminatingPressures2(terminatingNodes, terminatingPressuresTimeStepArray, option=1, figIndex=31, isLastFigure=False)
         self.plotTerminatingPressures2(terminatingNodes, terminatingPressuresTimeStepArray, option=2, figIndex=41, isLastFigure=True)
