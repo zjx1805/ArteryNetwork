@@ -2,15 +2,12 @@
 
 This repository contains the code for our [paper](link):
 
-> Paper info
+> Tracking the adaptation and compensation processes of patients brain arterial network to an evolving glioblastoma
 
 If you find the code useful for your research, please cite our paper:
 
-> Paper reference
+> Zhu, J., Teolis, S., Biassou, N., Tabb, A., Jabin, P.E. and Lavi, O., 2020. Tracking the adaptation and compensation processes of patients brain arterial network to an evolving glioblastoma. IEEE transactions on pattern analysis and machine intelligence, p.2020.
 
-# Note
-
-This repository is temporarily made public for the sole purpose of code display for my PhD application (2020 Fall). It will go back to private after mid December unless the paper gets accepted by then. Until then the author does **not** consent to any kind of use of the code in this repository.
 
 # Introduction
 
